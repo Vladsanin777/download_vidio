@@ -27,7 +27,7 @@ GtkWidget *window;
 //Основной grid
 GtkWidget *main_grid;
 
-short vidio = 0;
+bool vidio = nullptr;
 
 
 struct type_keybord{
@@ -77,6 +77,9 @@ private:
         button:active {
             background: rgba(0,0,0,0);
         }
+        button:focus {
+            background: rgba(0,0,0,0.3); /* Убирает изменение цвета при фокусировке */
+        }
         )", -1, NULL);
         gtk_style_context_add_provider(gtk_widget_get_style_context(unselected_widget), GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_USER);
 
@@ -98,6 +101,9 @@ private:
         }
         button:active {
             background: rgba(0,0,0,0);
+        }
+        button:focus {
+            background: rgba(0,0,0,0.5); /* Убирает изменение цвета при фокусировке */
         }
         )", -1, NULL);
         gtk_style_context_add_provider(gtk_widget_get_style_context(selected_widget), GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_USER);
@@ -121,39 +127,45 @@ private:
         button:active {
             background: rgba(0,0,0,0);
         }
+        button:focus {
+            background: rgba(255,255,255,0.5); /* Убирает изменение цвета при фокусировке */
+        }
         )", -1, NULL);
         gtk_style_context_add_provider(gtk_widget_get_style_context(selected_widget), GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_USER);
 
     }
-    static gboolean button_clicked_vidio(GtkWidget *widget, gpointer data) {
-	if (vidio == 1){
-            normal_selected_item(keybord_s->vidio);
-	    unselected_item(keybord_s->download);
-	    vidio = 0;
-	}else{
-	    selected_item(keybord_s->vidio);
+    static void button_clicked_vidio(GtkWidget *widget, gpointer data) {
+	if (!vidio){
+            selected_item(keybord_s->vidio);
 	    normal_selected_item(keybord_s->audio);
 	    normal_selected_item(keybord_s->download);
-	    vidio = 1;
+	    vidio = true;
+	}else{
+            normal_selected_item(keybord_s->vidio);
+	    unselected_item(keybord_s->download);
+	    vidio = nullptr;
 	}
-	return TRUE;
     }
     
-    static gboolean button_clicked_audio(GtkWidget *widget, gpointer data) {
-	if (vidio == -1) {
-	    normal_selected_item(keybord_s->audio);
-	    unselected_item(keybord_s->download);
-            vidio = 0;
-	}else{
-	    selected_item(keybord_s->audio);
-	    normal_selected_item(keybord_s->vidio);
-            normal_selected_item(keybord_s->download);
-	    vidio = -1;
+    static void button_clicked_audio(GtkWidget *widget, gpointer data) {
+	// Допилить логику здесь должнобыть условие либо пусто либо true надо попробывать свитч кейсом
+	switch (vidio) {
+	    case true:
+            case nullptr:
+	        selected_item(keybord_s->audio);
+	        normal_selected_item(keybord_s->vidio);
+	        normal_selected_item(keybord_s->download);
+	        vidio = false;
+	        break;
+	    case false:
+	        normal_selected_item(keybord_s->audio);
+	        unselected_item(keybord_s->download);
+                vidio = nullptr;
+	        break;
 	}
-	return TRUE;
     }
 
-    static gboolean button_clicked_download(GtkWidget *widget, gpointer data) {
+    static void button_clicked_download(GtkWidget *widget, gpointer data) {
 	const gchar *entry_text = gtk_entry_get_text(GTK_ENTRY(list_entry_container->entry));
         if (vidio){
             VidioDownload down;
@@ -161,7 +173,6 @@ private:
 	}else{
             std::cout<<"В разработке"<<std::endl;
 	}
-	return TRUE;
     }
 
     void window_s() {
@@ -264,17 +275,17 @@ private:
         
         GtkWidget* button_audio = create_custom_button("Аудио");
 	normal_selected_item(button_audio);
-        g_signal_connect(button_audio, "clicked", G_CALLBACK(button_clicked_audio), NULL);
+        g_signal_connect(button_audio, "clicked", G_CALLBACK(button_clicked_audio), list_entry_container->entry);
         gtk_grid_attach(GTK_GRID(main_grid), button_audio, 1, 1, 1, 1);
         
         GtkWidget* button_vidio = create_custom_button("Видео");
 	normal_selected_item(button_vidio);
-        g_signal_connect(button_vidio, "clicked", G_CALLBACK(button_clicked_vidio), NULL);
+        g_signal_connect(button_vidio, "clicked", G_CALLBACK(button_clicked_vidio), list_entry_container->entry);
         gtk_grid_attach(GTK_GRID(main_grid), button_vidio, 2, 1, 1, 1);
 	
 	GtkWidget* button_download = create_custom_button("Скачать");
 	unselected_item(button_download);
-        g_signal_connect(button_download, "clicked", G_CALLBACK(button_clicked_download), NULL);
+        g_signal_connect(button_download, "clicked", G_CALLBACK(button_clicked_download), list_entry_container->entry);
         gtk_grid_attach(GTK_GRID(main_grid), button_download, 1, 2, 2, 1);
 
 	keybord_s = new type_keybord{button_audio, button_vidio, button_download};
