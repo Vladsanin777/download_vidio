@@ -162,12 +162,14 @@ private:
 
     void window_s() {
         // Создаем окно
+	std::cout<<"hj11"<<std::endl;
         window = gtk_window_new();
+	std::cout<<"hj7"<<std::endl;
         gtk_window_set_default_size(GTK_WINDOW(window), 800, 300);
-
+	std::cout<<"hj9"<<std::endl;
         gtk_window_set_title(GTK_WINDOW(window), "Скачка видио с youtube");
 
-        
+	std::cout<<"hj"<<std::endl;
 
         // Инициализируем генератор случайных чисел текущим временем
         std::srand(static_cast<unsigned int>(std::time(nullptr)));
@@ -183,12 +185,16 @@ private:
 
         // Генерируем CSS-запрос
         std::string css_1 = "window { background: linear-gradient(to bottom right, " + fons_calor[randomNumber_1] + ", " + fons_calor[randomNumber_2] + ");}";
+	std::cout<<"1hj"<<std::endl;
 
         const gchar* css_data = css_1.c_str();
 
         // Устанавливаем CSS для фона окна
         GtkCssProvider *cssProvider = gtk_css_provider_new();
+	std::cout<<"2hj"<<std::endl;
         gtk_css_provider_load_from_string(cssProvider, css_data);
+	std::cout<<"3hj"<<std::endl;
+
         gtk_style_context_add_provider_for_display(gdk_display_get_default(), GTK_STYLE_PROVIDER(cssProvider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
     }
 
@@ -256,30 +262,58 @@ private:
         gtk_grid_attach(GTK_GRID(main_grid), button_vidio, 2, 1, 1, 1);
 
         GtkWidget* button_download = create_custom_button("Скачать");
-        unselected_item(button_download);
+        // unselected_item(button_download);
         g_signal_connect(button_download, "clicked", G_CALLBACK(button_clicked_download), NULL);
         gtk_grid_attach(GTK_GRID(main_grid), button_download, 1, 2, 2, 1);
 
         keybord_s = new type_keybord{ button_audio, button_vidio, button_download };
     }
 
+    // Функция завершения основного цикла
+    static void on_window_destroy(GtkWidget *widget, gpointer data) {
+        g_main_loop_quit((GMainLoop *)data);
+    }
+
 public:
     void start() {
+	std::cout<<"ty"<<std::endl;
         window_s();
-        main_grid_s();
-        entry();
-        keybord();
-        // g_signal_connect(window, "destroy", G_CALLBACK(g_main_quit), NULL);
+        std::cout<<"ty1"<<std::endl;
 
+        main_grid_s();
+	std::cout<<"ty2"<<std::endl;
+
+        entry();
+	std::cout<<"ty3"<<std::endl;
+
+        keybord();
+	std::cout<<"ty4"<<std::endl;
+
+        
+       	// Создание основного цикла
+        GMainLoop *loop = g_main_loop_new(NULL, FALSE);
+
+	// Установка сигнала для закрытия окна
+        g_signal_connect(window, "destroy", G_CALLBACK(on_window_destroy), loop);
+
+        // Показ окна
         gtk_window_present(GTK_WINDOW(window));
+
+        g_main_loop_run(loop);
+
+        // Освобождение ресурсов
+        g_main_loop_unref(loop);
+
+        std::cout<<"gh"<<std::endl;
     }
 };
 
-int main(int argc, char *argv[]) {
-    
+int main() {
+    gtk_init();
+    std::cout<<"dsf"<<std::endl;
     StartUI start;
     start.start();
-
+    
     return 0;
 }
 
