@@ -25,13 +25,10 @@ GtkWidget *window;
 // Основной grid
 GtkWidget *main_grid;
 
-short vidio = 0;
+bool vidio = false;
 
-struct type_keybord {
-    GtkWidget *audio, *vidio, *download;
-};
+bool audio = false;
 
-type_keybord *keybord_s;
 
 class VidioDownload {
 private:
@@ -55,121 +52,83 @@ public:
 
 class StartUI {
 private:
-    static void normal_selected_item(GtkWidget *selected_widget) {
+    static void normal_selected_item(std::string button) {
         GtkCssProvider *provider = gtk_css_provider_new();
-        gtk_css_provider_load_from_string(provider, R"(
-        button {
-            background: rgba(0,0,0,0.3);
-            border-radius: 0;
-            color: rgb(255,255,255);
-            border: 3px solid rgba(0,0,0,0);
-            text-shadow: none;
-            box-shadow: none;
-            transition: background 0.3s ease;
-        }
-        button:hover {
-            background: rgba(0,0,0,0.1);
-        }
-        button:active {
-            background: rgba(0,0,0,0);
-        }
-        )");
-        gtk_style_context_add_provider_for_display(gtk_widget_get_display(selected_widget), GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_USER);
+	std::string css = "." + button + " {"
+            "background: rgba(0,0,0,0.3);"
+        "}"
+        "." + button + ":hover {"
+            "background: rgba(0,0,0,0.2);"
+        "}";
+       	gtk_css_provider_load_from_string(provider, css.c_str());
+        gtk_style_context_add_provider_for_display(gtk_widget_get_display(window), GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_USER);
     }
 
-    static void selected_item(GtkWidget *selected_widget) {
+    static void selected_item(std::string button) {
         GtkCssProvider *provider = gtk_css_provider_new();
-        gtk_css_provider_load_from_string(provider, R"(
-        button {
-            background: rgba(0,0,0,0.5);
-            border-radius: 0;
-            color: rgb(255,255,255);
-            border: 3px solid rgba(0,0,0,0);
-            text-shadow: none;
-            box-shadow: none;
-            transition: background 0.3s ease;
-        }
-        button:hover {
-            background: rgba(0,0,0,0.6);
-        }
-        button:active {
-            background: rgba(0,0,0,0);
-        }
-        )");
-        gtk_style_context_add_provider_for_display(gtk_widget_get_display(selected_widget), GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_USER);
+	std::string css = "." + button + " {"
+            "background: rgba(0,0,0,0.5);"
+        "}"
+        "." + button + ":hover {"
+            "background: rgba(0,0,0,0.6);"
+        "}";
+        gtk_css_provider_load_from_string(provider, css.c_str());
+        gtk_style_context_add_provider_for_display(gtk_widget_get_display(window), GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_USER);
     }
 
-    static void unselected_item(GtkWidget *selected_widget) {
+    static void unselected_item(std::string button) {
         GtkCssProvider *provider = gtk_css_provider_new();
-        gtk_css_provider_load_from_string(provider, R"(
-        button {
-            background: rgba(255,255,255,0.5);
-            border-radius: 0;
-            color: rgb(255,255,255);
-            border: 3px solid rgba(0,0,0,0);
-            text-shadow: none;
-            box-shadow: none;
-            transition: background 0.3s ease;
-        }
-        button:hover {
-            background: rgba(255,255,255,0.6);
-        }
-        button:active {
-            background: rgba(0,0,0,0);
-        }
-        )");
-        gtk_style_context_add_provider_for_display(gtk_widget_get_display(selected_widget), GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_USER);
+	std::string css = "." + button + " {"
+            "background: rgba(255,255,255,0.5);"
+        "}"
+        "." + button + ":hover {"
+            "background: rgba(255,255,255,0.6);"
+        "}";
+        gtk_css_provider_load_from_string(provider, css.c_str());
+        gtk_style_context_add_provider_for_display(gtk_widget_get_display(window), GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_USER);
     }
 
-    static gboolean button_clicked_vidio(GtkWidget *widget, gpointer data) {
-        if (vidio == 1) {
-            normal_selected_item(keybord_s->vidio);
-            unselected_item(keybord_s->download);
-            vidio = 0;
-        } else {
-            selected_item(keybord_s->vidio);
-            normal_selected_item(keybord_s->audio);
-            normal_selected_item(keybord_s->download);
-            vidio = 1;
-        }
-        return TRUE;
+    static void button_clicked_vidio(GtkWidget *widget, gpointer data) {
+        vidio = vidio ? false : true;
+	audio = false;
+	coloring_button();
+
     }
 
-    static gboolean button_clicked_audio(GtkWidget *widget, gpointer data) {
-        if (vidio == -1) {
-            normal_selected_item(keybord_s->audio);
-            unselected_item(keybord_s->download);
-            vidio = 0;
-        } else {
-            selected_item(keybord_s->audio);
-            normal_selected_item(keybord_s->vidio);
-            normal_selected_item(keybord_s->download);
-            vidio = -1;
-        }
-        return TRUE;
+    static void button_clicked_audio(GtkWidget *widget, gpointer data) {
+        audio = audio ? false : true;
+	vidio = false;
+	coloring_button();
     }
 
-    static gboolean button_clicked_download(GtkWidget *widget, gpointer data) {
-        const gchar *entry_text = gtk_search_entry_get_placeholder_text(GTK_SEARCH_ENTRY(list_entry_container->entry));
-        if (vidio) {
-            VidioDownload down;
-            std::string output = down.command_cast(entry_text);
-        } else {
-            std::cout << "В разработке" << std::endl;
-        }
-        return TRUE;
+    static void button_clicked_download(GtkWidget *widget, gpointer data) {
+	if (vidio || audio){
+            const gchar *entry_text = gtk_search_entry_get_placeholder_text(GTK_SEARCH_ENTRY(list_entry_container->entry));
+            if (vidio) {
+                VidioDownload down;
+                std::string output = down.command_cast(entry_text);
+            }
+	    if (audio) {
+                std::cout << "В разработке" << std::endl;
+            }
+	}
+    }
+
+    static void coloring_button(){
+	if (vidio && audio) vidio = audio = false;
+	vidio || audio ? normal_selected_item("button_download") : unselected_item("button_download");
+	vidio ? selected_item("button_vidio") : normal_selected_item("button_vidio");
+	audio ? selected_item("button_audio") : normal_selected_item("button_audio");
     }
 
     void window_s() {
         // Создаем окно
-	std::cout<<"hj11"<<std::endl;
-        window = gtk_window_new();
-	std::cout<<"hj7"<<std::endl;
+	window = gtk_window_new();
+
+
         gtk_window_set_default_size(GTK_WINDOW(window), 800, 300);
-	std::cout<<"hj9"<<std::endl;
         gtk_window_set_title(GTK_WINDOW(window), "Скачка видио с youtube");
 
-	std::cout<<"hj"<<std::endl;
 
         // Инициализируем генератор случайных чисел текущим временем
         std::srand(static_cast<unsigned int>(std::time(nullptr)));
@@ -185,17 +144,28 @@ private:
 
         // Генерируем CSS-запрос
         std::string css_1 = "window { background: linear-gradient(to bottom right, " + fons_calor[randomNumber_1] + ", " + fons_calor[randomNumber_2] + ");}";
-	std::cout<<"1hj"<<std::endl;
-
-        const gchar* css_data = css_1.c_str();
-
         // Устанавливаем CSS для фона окна
         GtkCssProvider *cssProvider = gtk_css_provider_new();
-	std::cout<<"2hj"<<std::endl;
-        gtk_css_provider_load_from_string(cssProvider, css_data);
-	std::cout<<"3hj"<<std::endl;
+        gtk_css_provider_load_from_string(cssProvider, css_1.c_str());
 
         gtk_style_context_add_provider_for_display(gdk_display_get_default(), GTK_STYLE_PROVIDER(cssProvider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+
+	g_object_unref(cssProvider);
+	GtkCssProvider *provider = gtk_css_provider_new();
+
+        // Устанавливаем CSS
+        gtk_css_provider_load_from_string(provider,
+            " .titlebar { "
+            "     background-color: rgba(0,0,0,0.2); "
+            "     color: rgb(255,255,255); "
+	    "     background-image: none;"
+	    "     background-blend-mode: overlay; "
+            " } "
+	    );
+	
+        // Добавляем провайдер CSS в контекст стиля окна
+        gtk_style_context_add_provider_for_display(gtk_widget_get_display(window), GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_USER);
+	g_object_unref(provider);
     }
 
     void main_grid_s() {
@@ -251,29 +221,46 @@ private:
     }
 
     void keybord() {
-        GtkWidget* button_audio = create_custom_button("Аудио");
-        normal_selected_item(button_audio);
+        GtkWidget* button_audio = create_custom_button("Аудио");        
+        gtk_widget_add_css_class(button_audio, "button_audio");
         g_signal_connect(button_audio, "clicked", G_CALLBACK(button_clicked_audio), NULL);
         gtk_grid_attach(GTK_GRID(main_grid), button_audio, 1, 1, 1, 1);
 
         GtkWidget* button_vidio = create_custom_button("Видео");
-        normal_selected_item(button_vidio);
+	gtk_widget_add_css_class(button_vidio, "button_vidio");
         g_signal_connect(button_vidio, "clicked", G_CALLBACK(button_clicked_vidio), NULL);
         gtk_grid_attach(GTK_GRID(main_grid), button_vidio, 2, 1, 1, 1);
 
         GtkWidget* button_download = create_custom_button("Скачать");
-        // unselected_item(button_download);
+	gtk_widget_add_css_class(button_download, "button_download");
         g_signal_connect(button_download, "clicked", G_CALLBACK(button_clicked_download), NULL);
         gtk_grid_attach(GTK_GRID(main_grid), button_download, 1, 2, 2, 1);
 
-        keybord_s = new type_keybord{ button_audio, button_vidio, button_download };
+	coloring_button();
     }
+
 
     // Функция завершения основного цикла
     static void on_window_destroy(GtkWidget *widget, gpointer data) {
         g_main_loop_quit((GMainLoop *)data);
     }
-
+    void button_style_start(){
+	GtkCssProvider *provider = gtk_css_provider_new();
+	std::string css = "button {"
+            "border-radius: 0;"
+            "color: rgb(255,255,255);"
+            "border: 3px solid rgba(0,0,0,0);"
+            "text-shadow: none;"
+            "box-shadow: none;"
+            "transition: background 0.3s ease;"
+        "}"
+        "button:active {"
+            "background: rgba(0,0,0,0);"
+        "}";
+        gtk_css_provider_load_from_string(provider, css.c_str());
+        gtk_style_context_add_provider_for_display(gtk_widget_get_display(window), GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_USER);
+    }
+    
 public:
     void start() {
 	std::cout<<"ty"<<std::endl;
@@ -288,7 +275,7 @@ public:
 
         keybord();
 	std::cout<<"ty4"<<std::endl;
-
+	button_style_start();
         
        	// Создание основного цикла
         GMainLoop *loop = g_main_loop_new(NULL, FALSE);
@@ -305,8 +292,10 @@ public:
         g_main_loop_unref(loop);
 
         std::cout<<"gh"<<std::endl;
+
     }
 };
+
 
 int main() {
     gtk_init();
