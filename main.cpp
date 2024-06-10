@@ -50,6 +50,34 @@ public:
     }
 };
 
+
+class Error {
+private:
+    bool error_titlebar_red_s = true;
+    static void error_titlebar_red(){
+	GtkCssProvider *provider = gtk_css_provider_new();
+	gtk_css_provider_load_from_string(provider,
+            error_titlebar_red ? " .titlebar { "
+            "     background-color: red; "
+            " } " : " .titlebar { "
+            "     background-color: rgba(0,0,0,0.3); "
+	    " } "
+	);
+	gtk_style_context_add_provider_for_display(gtk_widget_get_display(window), GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_USER);
+	g_object_unref(provider);
+	Error er;
+	er.error_titlebar_red_s = !er.error_titlebar_red_s;
+    }
+public:
+    void error_main(){
+	g_timeout_add(2000, (GSourceFunc)error_titlebar_red, NULL);
+	// error_entry_trembling();
+	// error_entry_red();
+    }
+};
+
+
+
 class StartUI {
 private:
     static void normal_selected_item(std::string button) {
@@ -184,7 +212,7 @@ private:
         gtk_grid_attach(GTK_GRID(main_grid), grid_1, 0, 0, 4, 1);
         gtk_widget_set_hexpand(grid_1, TRUE);
         gtk_widget_set_vexpand(grid_1, TRUE);
-
+	
         // Создаем CSS-провайдер
         GtkCssProvider *provider = gtk_css_provider_new();
         gtk_css_provider_load_from_string(provider, "grid { border-bottom: 10px solid rgba(0, 0, 0, 0); }");
@@ -197,20 +225,21 @@ private:
         gtk_widget_set_hexpand(grid_2, TRUE);
         gtk_widget_set_vexpand(grid_2, TRUE);
 
+	        
         // Создаем GtkEntry для отображения ввода
         GtkWidget *entry = gtk_entry_new();
         gtk_entry_set_alignment(GTK_ENTRY(entry), 1);
         // gtk_entry_set_text(GTK_ENTRY(entry), "Прямая ссылка на видио!!!");
         gtk_editable_set_editable(GTK_EDITABLE(entry), TRUE);
-        gtk_grid_attach(GTK_GRID(grid_2), entry, 0, 0, 1, 1);
         gtk_widget_set_hexpand(entry, TRUE);
         gtk_widget_set_vexpand(entry, TRUE);
-
+	gtk_grid_attach(GTK_GRID(grid_2), entry, 0, 0, 1, 1);
+	
         provider = gtk_css_provider_new();
-        gtk_css_provider_load_from_string(provider, "entry { background-color: rgba(0,0,0,0.1);}");
+        gtk_css_provider_load_from_string(provider, "entry { background-color: rgba(0,0,0,0.1); color: rgb(255,255,255); }");
         gtk_style_context_add_provider_for_display(gtk_widget_get_display(entry), GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
 
-        list_entry_container = new Type_list_entry_container{ grid_1, grid_2, entry };
+        list_entry_container = new Type_list_entry_container{ grid_1, grid_2, entry};
     }
 
     GtkWidget *create_custom_button(const gchar *label) {
