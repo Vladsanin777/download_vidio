@@ -53,29 +53,80 @@ public:
 
 class Error {
 private:
-    bool error_titlebar_red_s = true;
-    static void error_titlebar_red(){
-	GtkCssProvider *provider = gtk_css_provider_new();
-	gtk_css_provider_load_from_string(provider,
-            error_titlebar_red ? " .titlebar { "
-            "     background-color: red; "
-            " } " : " .titlebar { "
-            "     background-color: rgba(0,0,0,0.3); "
-	    " } "
-	);
-	gtk_style_context_add_provider_for_display(gtk_widget_get_display(window), GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_USER);
-	g_object_unref(provider);
-	Error er;
-	er.error_titlebar_red_s = !er.error_titlebar_red_s;
+    static short state;
+    static void apply_css(const char* css) {
+        GtkCssProvider* provider = gtk_css_provider_new();
+        gtk_css_provider_load_from_string(provider, css);
+        gtk_style_context_add_provider_for_display(gtk_widget_get_display(window), GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_USER);
+        g_object_unref(provider);
     }
+
+    static gboolean reset_margin(gpointer) {
+        apply_css(" .grid_1 { margin: 0px 0px 0px 0px; transition: margin 0.05s ease; } ");
+        return FALSE;
+    }
+
+    static gboolean set_margin(gpointer) {
+        apply_css(" .grid_1 { margin: 0px 0px 0px 20px; transition: margin 0.05s ease; } ");
+        g_timeout_add(50, reset_margin, nullptr);
+        return FALSE;
+    }
+
+    static gboolean error_entry_trembling_step(gpointer data) {
+        int* counter = static_cast<int*>(data);
+        apply_css(" .grid_1 { margin: 0px 20px 0px 0px; transition: margin 0.05s ease; } ");
+        g_timeout_add(100, set_margin, nullptr);
+        (*counter)++;
+        if (*counter < 30) {
+            g_timeout_add(200, error_entry_trembling_step, data);
+        } else {
+            delete counter;
+        }
+        return FALSE;
+    }
+
+    static void error_entry_trembling() {
+        int* counter = new int(0);
+        error_entry_trembling_step(counter);
+    }
+
+    static void error_titlebar_red() {
+        const char* css = state % 2 == 0 ?
+            " .titlebar { background-color: red; transition: background-color 0.6s ease; } " :
+            " .titlebar { background-color: rgba(0,0,0,0.3); transition: background-color 2.5s ease; } ";
+        apply_css(css);
+    }
+
+    static void error_entry_red() {
+        const char* css = state % 2 == 0 ?
+            "entry { background-color: red; transition: background-color 0.6s ease; }" :
+            "entry { background-color: rgba(0,0,0,0.1); transition: background-color 2.5s ease; }";
+        apply_css(css);
+    }
+
+    static gboolean error_start(gpointer) {
+        error_titlebar_red();
+        error_entry_red();
+        state++;
+        if (state == 6) {
+            state = 0;
+            return FALSE;
+        } else {
+            return TRUE;
+        }
+    }
+
 public:
-    void error_main(){
-	g_timeout_add(2000, (GSourceFunc)error_titlebar_red, NULL);
-	// error_entry_trembling();
-	// error_entry_red();
+    void error_main() {
+        state = 0;
+        error_start(nullptr);
+        error_entry_trembling();
+        g_timeout_add(1000, error_start, nullptr);
     }
 };
 
+// Определение статической переменной
+short Error::state = 0;
 
 
 class StartUI {
@@ -131,12 +182,14 @@ private:
 
     static void button_clicked_download(GtkWidget *widget, gpointer data) {
 	if (vidio || audio){
-            const gchar *entry_text = gtk_search_entry_get_placeholder_text(GTK_SEARCH_ENTRY(list_entry_container->entry));
+            const gchar *entry_text = gtk_entry_get_placeholder_text(GTK_ENTRY(list_entry_container->entry));
             if (vidio) {
                 VidioDownload down;
                 std::string output = down.command_cast(entry_text);
             }
 	    if (audio) {
+		Error er;
+		er.error_main();
                 std::cout << "В разработке" << std::endl;
             }
 	}
@@ -212,6 +265,7 @@ private:
         gtk_grid_attach(GTK_GRID(main_grid), grid_1, 0, 0, 4, 1);
         gtk_widget_set_hexpand(grid_1, TRUE);
         gtk_widget_set_vexpand(grid_1, TRUE);
+	gtk_widget_add_css_class(grid_1, "grid_1");
 	
         // Создаем CSS-провайдер
         GtkCssProvider *provider = gtk_css_provider_new();
