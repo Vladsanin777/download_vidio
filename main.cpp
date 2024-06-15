@@ -53,6 +53,7 @@ public:
 
 class Error {
 private:
+    static void (*error_object_red)();
     static short state;
     static void apply_css(const char* css) {
         GtkCssProvider* provider = gtk_css_provider_new();
@@ -77,7 +78,7 @@ private:
         apply_css(" .grid_1 { margin: 0px 20px 0px 0px; transition: margin 0.05s ease; } ");
         g_timeout_add(100, set_margin, nullptr);
         (*counter)++;
-        if (*counter < 30) {
+        if (*counter < 10) {
             g_timeout_add(200, error_entry_trembling_step, data);
         } else {
             delete counter;
@@ -104,32 +105,56 @@ private:
         apply_css(css);
     }
 
-    static gboolean error_start(gpointer) {
+    static void error_button_red() {
+        const char* css = state % 2 == 0 ?
+	    ".button_choice { background: red; transition: background 0.6s ease;}" :
+	    ".button_choice { background: rgba(0,0,0,0.3); transition: background 2.5s ease; } .button_choice:hover {background: rgba(0,0,0,0.2);}";
+	apply_css(css);
+    }
+
+    static gboolean error_start() {
         error_titlebar_red();
-        error_entry_red();
+        error_object_red();
         state++;
-        if (state == 6) {
+        if (state == 2) {
             state = 0;
             return FALSE;
         } else {
             return TRUE;
         }
     }
-
+    
+    static void init(){};
+    static void transition_none_button_choice(){apply_css(".button_choice { transition: none; }");}
+    static void return_tittle(){gtk_window_set_title(GTK_WINDOW(window), "Скачка видио с youtube!");}
 public:
-    void error_main() {
-        state = 0;
-        error_start(nullptr);
-        error_entry_trembling();
-        g_timeout_add(1000, error_start, nullptr);
+    static void error_main(const char* object) {
+	state = 0;
+	gchar *title = NULL;
+	if (strcmp(object, "entry") == 0) {
+	    gtk_window_set_title(GTK_WINDOW(window), "Некоректная ссылка!");
+	    error_object_red = error_entry_red;
+            error_start();
+            error_entry_trembling();
+            g_timeout_add(1000, (GSourceFunc)error_start, NULL);
+	}else if(strcmp(object, "button") == 0){
+	    gtk_window_set_title(GTK_WINDOW(window), "Невыбран формат файла!"); 
+	    error_object_red = error_button_red;
+            error_start();
+	    g_timeout_add(1000, (GSourceFunc)error_start, NULL);
+	    g_timeout_add(3000, (GSourceFunc)transition_none_button_choice, NULL);
+	}
+	g_timeout_add(3000, (GSourceFunc)return_tittle, NULL);
     }
 };
 
 // Определение статической переменной
 short Error::state = 0;
 
+// Инициализация указателя на функцию
+void (*Error::error_object_red)() = Error::init;
 
-class StartUI {
+class StartUI : public Error {
 private:
     static void normal_selected_item(std::string button) {
         GtkCssProvider *provider = gtk_css_provider_new();
@@ -184,12 +209,13 @@ private:
 	if (vidio || audio){
             const gchar *entry_text = gtk_entry_get_placeholder_text(GTK_ENTRY(list_entry_container->entry));
             if (vidio) {
-                VidioDownload down;
-                std::string output = down.command_cast(entry_text);
+		error_main("entry");
+                std::cout << "В разработке" << std::endl;
+                // VidioDownload down;
+                // std::string output = down.command_cast(entry_text);
             }
 	    if (audio) {
-		Error er;
-		er.error_main();
+		error_main("button");
                 std::cout << "В разработке" << std::endl;
             }
 	}
@@ -208,7 +234,7 @@ private:
 
 
         gtk_window_set_default_size(GTK_WINDOW(window), 800, 300);
-        gtk_window_set_title(GTK_WINDOW(window), "Скачка видио с youtube");
+        gtk_window_set_title(GTK_WINDOW(window), "Скачка видио с youtube!");
 
 
         // Инициализируем генератор случайных чисел текущим временем
@@ -306,11 +332,13 @@ private:
     void keybord() {
         GtkWidget* button_audio = create_custom_button("Аудио");        
         gtk_widget_add_css_class(button_audio, "button_audio");
+	gtk_widget_add_css_class(button_audio, "button_choice");
         g_signal_connect(button_audio, "clicked", G_CALLBACK(button_clicked_audio), NULL);
         gtk_grid_attach(GTK_GRID(main_grid), button_audio, 1, 1, 1, 1);
 
         GtkWidget* button_vidio = create_custom_button("Видео");
 	gtk_widget_add_css_class(button_vidio, "button_vidio");
+	gtk_widget_add_css_class(button_vidio, "button_choice");
         g_signal_connect(button_vidio, "clicked", G_CALLBACK(button_clicked_vidio), NULL);
         gtk_grid_attach(GTK_GRID(main_grid), button_vidio, 2, 1, 1, 1);
 
