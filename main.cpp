@@ -1,4 +1,6 @@
 //  g++ -g -o d main.cpp `pkg-config --cflags --libs gtk4` -lcurl
+//  yay -S ffmpeg
+//  yay -S youtube-dl
 
 
 
@@ -207,7 +209,7 @@ private:
 
     static void button_clicked_download(GtkWidget *widget, gpointer data) {
 	if (vidio || audio){
-            const gchar *entry_text = gtk_entry_get_placeholder_text(GTK_ENTRY(list_entry_container->entry));
+	    std::string entry_text = std::string(gtk_entry_get_placeholder_text(GTK_ENTRY(list_entry_container->entry)));
             if (vidio) {
 		error_main("entry");
                 std::cout << "В разработке" << std::endl;
@@ -218,7 +220,7 @@ private:
 		error_main("button");
                 std::cout << "В разработке" << std::endl;
             }
-	}
+	}else error_main("button");
     }
 
     static void coloring_button(){
