@@ -34,21 +34,39 @@ bool audio = false;
 
 class VidioDownload {
 private:
-    std::string exec(const char* cmd) {
-        std::array<char, 128> buffer;
-        std::string result;
-        std::shared_ptr<FILE> pipe(popen(cmd, "r"), pclose);
-        if (!pipe) throw std::runtime_error("popen() failed!");
-        while (!feof(pipe.get())) {
-            if (fgets(buffer.data(), 128, pipe.get()) != nullptr)
-                result += buffer.data();
+    // Функция для обработки прогресса
+    void process_progress(const std::string& output) {
+        std::regex re(R"((\d+.\d+)%\s+of\s+(\d+\.\d+\wB)\s+at\s+(\d+\.\d+\wB/s)\s+ETA\s+(\d+:\d+))");
+        std::smatch match;
+        if (std::regex_search(output, match, re)) {
+            std::string percent = match[1];
+            std::string size = match[2];
+            std::string speed = match[3];
+            std::string time = match[4];
+
+            std::cout << "Процент: " << percent << "%, "
+                  << "Размер: " << size << ", "
+                  << "Скорость: " << speed << ", "
+                  << "Оставшееся время: " << time << std::endl;
         }
-        return result;
     }
 public:
     std::string command_cast(const std::string video_url) {
-        // Команда для скачивания видео с помощью yt-dlp
-        return exec(("yt-dlp -f bestvideo+bestaudio --merge-output-format mp4 -o \"%(title)s.%(ext)s\" \"" + video_url + "\"").c_str());
+        std::string command;
+	// Creation command for download vidio with youtube
+        if (option == "vidio") command = "yt-dlp -f best -o 'video.%(ext)s' --newline --verbose \"" + video_url + "\"";
+	// Creation command for download vidio with youtube
+	else if (option == "audio") command = "yt-dlp -x --audio-format mp3 -o 'audio.%(ext)s' --newline --verbose \"" + video_url + "\"";
+	// Launch command for download file
+	FILE* pipe = popen(command.c_str(), "r");
+	// Creation varible for reception information about download audio or vidio
+	char buffer[128];
+	// Cycle for update informatio about download audio or vidio
+	while (fgets(buffer, sizeof(buffer), pipe) != NULL) 
+            process_progress(output);
+        }
+	// Close command
+	pclose(pipe);
     }
 };
 
