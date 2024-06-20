@@ -14,6 +14,7 @@
 #include <array>
 #include <vector>
 #include <ctime>
+#include <regex>
 
 struct Type_list_entry_container {
     GtkWidget *grid_1, *grid_2, *entry;
@@ -33,40 +34,48 @@ bool audio = false;
 
 
 class VidioDownload {
-private:
-    // Функция для обработки прогресса
-    void process_progress(const std::string& output) {
-        std::regex re(R"((\d+.\d+)%\s+of\s+(\d+\.\d+\wB)\s+at\s+(\d+\.\d+\wB/s)\s+ETA\s+(\d+:\d+))");
-        std::smatch match;
-        if (std::regex_search(output, match, re)) {
-            std::string percent = match[1];
-            std::string size = match[2];
-            std::string speed = match[3];
-            std::string time = match[4];
-
-            std::cout << "Процент: " << percent << "%, "
-                  << "Размер: " << size << ", "
-                  << "Скорость: " << speed << ", "
-                  << "Оставшееся время: " << time << std::endl;
-        }
-    }
 public:
-    std::string command_cast(const std::string video_url) {
+    // Функция для выполнения команды в командной строке и возврата результата
+    static void command_cast(const std::string& video_url, const std::string& format) {
         std::string command;
-	// Creation command for download vidio with youtube
-        if (option == "vidio") command = "yt-dlp -f best -o 'video.%(ext)s' --newline --verbose \"" + video_url + "\"";
-	// Creation command for download vidio with youtube
-	else if (option == "audio") command = "yt-dlp -x --audio-format mp3 -o 'audio.%(ext)s' --newline --verbose \"" + video_url + "\"";
-	// Launch command for download file
-	FILE* pipe = popen(command.c_str(), "r");
-	// Creation varible for reception information about download audio or vidio
-	char buffer[128];
-	// Cycle for update informatio about download audio or vidio
-	while (fgets(buffer, sizeof(buffer), pipe) != NULL) 
-            process_progress(output);
+	std::cout<<format<<std::endl;
+        // Создание команды для загрузки видео с YouTube
+        if (format == "video") command = "yt-dlp -f best -o 'video.%(ext)s' --newline --no-warnings \"" + video_url + "\"";
+        else if (format == "audio") command = "yt-dlp -x --audio-format mp3 -o 'audio.%(ext)s' --newline --no-warnings \"" + video_url + "\"";
+        
+
+        // Запуск команды для загрузки файла
+        FILE* pipe = popen(command.c_str(), "r");
+        if (!pipe) {
+            std::cerr << "Ошибка выполнения команды." << std::endl;
+            return;
         }
-	// Close command
-	pclose(pipe);
+
+        // Переменные для получения информации о загрузке аудио или видео
+        char buffer[256];
+        std::regex regexPattern(R"(\[download\] +(\d+\.\d+)% of ~?(\d+\.\d+MiB) at +([\d\.]+[KMG]?iB/s) ETA (\d+:\d+))");
+        std::smatch match;
+
+        // Цикл для обновления информации о загрузке аудио или видео
+        while (fgets(buffer, sizeof(buffer), pipe) != NULL) {
+	    std::cout<<"edsd"<<std::endl;
+            std::string line(buffer);
+
+            if (std::regex_search(line, match, regexPattern)) {
+                std::string percent = match[1].str();
+                std::string size = match[2].str();
+                std::string speed = match[3].str();
+                std::string eta = match[4].str();
+
+                std::cout << "Процент: " << percent << "%, "
+                          << "Размер: " << size << ", "
+                          << "Скорость: " << speed << ", "
+                          << "Оставшееся время: " << eta << std::endl;
+            }
+        }
+
+        // Закрытие команды
+        pclose(pipe);
     }
 };
 
@@ -148,17 +157,16 @@ private:
     static void transition_none_button_choice(){apply_css(".button_choice { transition: none; }");}
     static void return_tittle(){gtk_window_set_title(GTK_WINDOW(window), "Скачка видио с youtube!");}
 public:
-    static void error_main(const char* object) {
+    static void error_main(const char* object, const char* string_title) {
 	state = 0;
 	gchar *title = NULL;
+	gtk_window_set_title(GTK_WINDOW(window), string_title);
 	if (strcmp(object, "entry") == 0) {
-	    gtk_window_set_title(GTK_WINDOW(window), "Некоректная ссылка!");
 	    error_object_red = error_entry_red;
             error_start();
             error_entry_trembling();
             g_timeout_add(1000, (GSourceFunc)error_start, NULL);
 	}else if(strcmp(object, "button") == 0){
-	    gtk_window_set_title(GTK_WINDOW(window), "Невыбран формат файла!"); 
 	    error_object_red = error_button_red;
             error_start();
 	    g_timeout_add(1000, (GSourceFunc)error_start, NULL);
@@ -174,7 +182,7 @@ short Error::state = 0;
 // Инициализация указателя на функцию
 void (*Error::error_object_red)() = Error::init;
 
-class StartUI : public Error {
+class StartUI : public Error, public VidioDownload {
 private:
     static void normal_selected_item(std::string button) {
         GtkCssProvider *provider = gtk_css_provider_new();
@@ -227,18 +235,22 @@ private:
 
     static void button_clicked_download(GtkWidget *widget, gpointer data) {
 	if (vidio || audio){
-	    std::string entry_text = std::string(gtk_entry_get_placeholder_text(GTK_ENTRY(list_entry_container->entry)));
-            if (vidio) {
-		error_main("entry");
-                std::cout << "В разработке" << std::endl;
-                // VidioDownload down;
-                // std::string output = down.command_cast(entry_text);
-            }
-	    if (audio) {
-		error_main("button");
-                std::cout << "В разработке" << std::endl;
-            }
-	}else error_main("button");
+	    const gchar* entry_text_cstr = gtk_editable_get_text(GTK_EDITABLE(list_entry_container->entry));
+	    std::string entry_text = entry_text_cstr ? std::string(entry_text_cstr) : "";
+    	    std::cout<<"d"<<std::endl;
+	    std::cout<<entry_text_cstr<<std::endl;
+	    if (entry_text.find("https://") != std::string::npos){
+	  	if ((entry_text.find("https://music.youtube.com/") != std::string::npos) || (entry_text.find("https://youtube.com/") != std::string::npos) || (entry_text.find("https://www.youtube.com/") != std::string::npos)) {
+		    char format[6];
+                    if (vidio) {
+			strcpy(format, "vidio");
+                    }else if (audio) {
+                        strcpy(format, "audio");
+		    }
+		    command_cast(entry_text, format);
+	        }else error_main("entry", "Введена некоректная ссылка!!!");
+	    }else error_main("entry", "Ссылка не введина!!!");
+	}else error_main("button", "Не выбран формат файла!!!");
     }
 
     static void coloring_button(){
