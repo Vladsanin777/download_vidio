@@ -36,14 +36,14 @@ bool audio = false;
 class VidioDownload {
 public:
     // Функция для выполнения команды в командной строке и возврата результата
-    static void command_cast(const std::string& video_url, const std::string& format) {
+    void command_cast(std::string video_url, std::string format) {
         std::string command;
 	std::cout<<format<<std::endl;
         // Создание команды для загрузки видео с YouTube
-        if (format == "video") command = "yt-dlp -f best -o 'video.%(ext)s' --newline --no-warnings \"" + video_url + "\"";
-        else if (format == "audio") command = "yt-dlp -x --audio-format mp3 -o 'audio.%(ext)s' --newline --no-warnings \"" + video_url + "\"";
+        if (format == "video") command = "yt-dlp -f bestvideo+bestaudio --merge-output-format mp4 -o \"%(title)s.%(ext)s\" \"" + video_url + "\"";
+        else if (format == "audio") command = "yt-dlp -x --audio-format mp3 -o 'audio.%(ext)s' --newline --verbose \"" + video_url + "\"";
         
-
+	std::cout<<command<<std::endl;
         // Запуск команды для загрузки файла
         FILE* pipe = popen(command.c_str(), "r");
         if (!pipe) {
@@ -247,7 +247,8 @@ private:
                     }else if (audio) {
                         strcpy(format, "audio");
 		    }
-		    command_cast(entry_text, format);
+		    VidioDownload VD;
+		    VD.command_cast(entry_text, format);
 	        }else error_main("entry", "Введена некоректная ссылка!!!");
 	    }else error_main("entry", "Ссылка не введина!!!");
 	}else error_main("button", "Не выбран формат файла!!!");

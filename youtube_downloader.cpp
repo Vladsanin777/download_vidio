@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <cstdio>
 #include <string>
+#include <regex>
 
 // Функция для выполнения команды в командной строке и возврата результата
 std::string exec(const char* cmd) {
@@ -56,11 +57,24 @@ int main() {
     }
 
     char buffer[128];
+    std::regex regexPattern(R"(\[download\] +(\d+\.\d+)% of ~?(\d+\.\d+MiB) at +([\d\.]+[KMG]?iB/s) ETA (\d+:\d+))");
+    std::smatch match;
     try {
         while (fgets(buffer, sizeof(buffer), pipe) != NULL) {
-            // Печать прогресса или другой информации
-            std::cout << buffer << std::flush;
-        }
+            std::string line(buffer);
+
+            if (std::regex_search(line, match, regexPattern)) {
+                std::string percent = match[1].str();
+                std::string size = match[2].str();
+                std::string speed = match[3].str();
+                std::string eta = match[4].str();
+
+                std::cout << "Процент: " << percent << "%, "
+                          << "Размер: " << size << ", "
+                          << "Скорость: " << speed << ", "
+                          << "Оставшееся время: " << eta << std::endl;
+            }
+	}
     } catch (...) {
         pclose(pipe);
         throw;
