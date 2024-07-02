@@ -20,18 +20,19 @@
 GtkWidget *window;
 // Основной grid
 GtkWidget *main_grid;
-
+// Поля с пользовательским url
 GtkWidget *entry_url;
-
-struct info_download_vidio{
-    float persent;
-    std::string size, speed, eta;
-};
-
-std::vector<info_download_vidio> list_info_download
-
+// Боковая панель
+GtkWidget *scrolled_window_side_panel;
+// Боковая панель grid
+GtkWidget *grid_side_panel;
+// Открытали панель с выводом информации о скачивании
+bool download_info = false;
+// Сколько видио скачивается в данный момент
+int download_vidio = 0;
+// Выбрано ли видио
 bool vidio = false;
-
+// Выбрано ли аудио
 bool audio = false;
 
 int division_into_two_parts_text_and_textual(std::string input){
@@ -85,7 +86,8 @@ public:
         char buffer[256];
         std::regex regexPattern(R"(\[download\]\s+(\d+\.\d+)% of\s+(\d+\.\d+KiB) at\s+([\d\.]+[KMG]iB/s) ETA (\d+:\d+))");
 	    std::smatch match;
-
+        download_vidio++;
+        short dv_num = download_vidio;
         // Цикл для обновления информации о загрузке аудио или видео
         while (fgets(buffer, sizeof(buffer), pipe) != NULL) {
 	        std::cout<<"edsd"<<std::endl;
@@ -105,7 +107,6 @@ public:
                           << "Оставшееся время: " << eta << std::endl;
             }
         }
-
         // Закрытие команды
         pclose(pipe);
     }
@@ -114,33 +115,28 @@ public:
 
 class View_DL : public Base{
 public:
-    void creation_side_panel(){
-        std::cout<<"fzhuk"<<std::endl;
-        GtkWidget *scrolled_window_side_panel = gtk_scrolled_window_new();
-        std::cout<<"jk;lmzjklkj"<<std::endl;
-        
-        std::cout<<"jkljlkvjkl"<<std::endl;
-        gtk_widget_set_hexpand(scrolled_window_side_panel, TRUE);
-        std::cout<<"sdsdcjndc"<<std::endl;
-        gtk_widget_set_vexpand(scrolled_window_side_panel, TRUE);
-        std::cout<<"jnivmszdf"<<std::endl;
-	    gtk_widget_add_css_class(scrolled_window_side_panel, "scrolled_window_side_panel");
-        std::cout<<"vjnkzjnl"<<std::endl;
-        apply_css(".scrolled_window_side_panel{min-width: 250px;  margin-left: 10px; background-color: rgba(0,0,0,0.1);}");
+    void on_side_panel(){
         gtk_grid_attach(GTK_GRID(main_grid), scrolled_window_side_panel, 6, 0, 1, 3);
-        /*
-        GtkWidget *grid_side_panel = gtk_grid_new();
+    }
+    void creation_side_panel(){
+        scrolled_window_side_panel = gtk_scrolled_window_new();
+        gtk_widget_set_hexpand(scrolled_window_side_panel, TRUE);
+        gtk_widget_set_vexpand(scrolled_window_side_panel, TRUE);
+	    gtk_widget_add_css_class(scrolled_window_side_panel, "scrolled_window_side_panel");
+        apply_css(".scrolled_window_side_panel{min-width: 250px;  margin-left: 10px; background-color: rgba(0,0,0,0.1);}");
+        
+        grid_side_panel = gtk_grid_new();
         gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(scrolled_window_side_panel), grid_side_panel);
         gtk_widget_add_css_class(grid_side_panel, "grid_side_panel");
         gtk_widget_set_hexpand(grid_side_panel, TRUE);
         gtk_widget_set_vexpand(grid_side_panel, TRUE);
-        
+    }
+    void first_side_panel(){   
         GtkWidget *label_item_first = gtk_editable_label_new("Вы ничего не скачиваете");
         gtk_grid_attach(GTK_GRID(grid_side_panel), label_item_first, 0, 0, 1, 1);
         gtk_widget_add_css_class(label_item_first, "label_item_first");
         gtk_widget_set_hexpand(label_item_first, TRUE);
         gtk_widget_set_vexpand(label_item_first, TRUE);
-        */
 
     }
 };
