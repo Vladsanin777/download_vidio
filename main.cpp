@@ -35,7 +35,7 @@ GtkWidget *error_button;
 // Включение и выключение боковой панели
 GtkWidget *side_panel_button;
 // Открытали панель с выводом информации о скачивании
-bool download_info = true;
+bool download_info = false;
 // Сколько видио скачивается в данный момент
 int download_vidio = 0;
 // Выбрано ли видио
@@ -128,32 +128,30 @@ public:
         int width = gtk_widget_get_width(GTK_WIDGET(window));
         int height = gtk_widget_get_height(GTK_WIDGET(window));
 
-        // Получаем размеры панели
-        GtkRequisition requisition;
-        gtk_widget_get_preferred_size(scrolled_window_side_panel, NULL, &requisition);
-
         if (download_info){
-            gtk_widget_set_visible(scrolled_window_side_panel, TRUE);
-            
             // Увеличиваем ширину окна на ширину панели
             gtk_window_set_default_size(GTK_WINDOW(window), width + 250, height);
+
+            gtk_widget_set_visible(scrolled_window_side_panel, TRUE);
         }else{
             gtk_widget_set_visible(scrolled_window_side_panel, FALSE);
             
             // Уменьшаем ширину окна на ширину панели
-            gtk_window_set_default_size(GTK_WINDOW(window), width - requisition.width, height);
+            gtk_window_set_default_size(GTK_WINDOW(window), width - 250, height);
         }
     }
     void include_emptry_side_panel(){
-        gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(scrolled_window_side_panel), label_item_emptry);
+        gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(scrolled_window_side_panel), label_item_emptry);                
     }
     static void clicked_error_button(GtkWidget *widget, gpointer data){}
     void creation_side_panel(){
         scrolled_window_side_panel = gtk_scrolled_window_new();
-        gtk_widget_add_css_class(scrolled_window_side_panel, "scrolled_window_side_panel");
-        apply_css(".scrolled_window_side_panel{min-width: 250px; margin-left: 10px; background-color: rgba(0,0,0,0.1);}");
-        gtk_widget_set_vexpand(scrolled_window_side_panel, TRUE);
         gtk_grid_attach(GTK_GRID(main_grid), scrolled_window_side_panel, 7, 0, 1, 3);
+        gtk_widget_add_css_class(scrolled_window_side_panel, "scrolled_window_side_panel");
+        apply_css(".scrolled_window_side_panel{ margin-left: 10px; background-color: rgba(0,0,0,0.1);}");
+        gtk_widget_set_vexpand(scrolled_window_side_panel, TRUE);
+        gtk_widget_set_size_request(scrolled_window_side_panel, 250, 0);
+        gtk_widget_set_visible(scrolled_window_side_panel, FALSE);
     }
     void emptry_side_panel(){   
         label_item_emptry = gtk_editable_label_new("Вы ничего не скачиваете");
@@ -318,7 +316,7 @@ private:
         // Создаем окно
 	    window = gtk_window_new();
 
-        gtk_window_set_default_size(GTK_WINDOW(window), 400, 200);
+        gtk_window_set_default_size(GTK_WINDOW(window), 200, 200);
         gtk_window_set_title(GTK_WINDOW(window), "Скачка видио с youtube!");
 
         // Инициализируем генератор случайных чисел текущим временем
@@ -425,16 +423,16 @@ public:
 
         keybord();
 	    std::cout<<"ty4"<<std::endl;
-    	        
+
         creation_side_panel();
         std::cout<<"hj"<<std::endl;
 
         include_and_creation_middle_panel();
         std::cout<<"fsad"<<std::endl;
 
+    	        
+        
         button_style_start();
-
-        include_side_panel();
 
         
        	// Создание основного цикла
@@ -450,6 +448,8 @@ public:
 
         // Освобождение ресурсов
         g_main_loop_unref(loop);
+
+        
 
         std::cout<<"gh"<<std::endl;
 
