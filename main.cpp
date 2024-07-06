@@ -1,6 +1,6 @@
 //  g++ -g -o d main.cpp `pkg-config --cflags --libs gtk4` -lcurl
 //  yay -S ffmpeg
-//  yay -S youtube-dl
+//  yay -S yt-dlp
 
 
 
@@ -16,8 +16,12 @@
 #include <ctime>
 #include <regex>
 
+
+
 // Окно
 GtkWidget *window;
+// Рандомайзер для фона окна
+std::vector<std::string> fons_calor = { "#99FF18", "#FFF818", "#FFA918", "#FF6618", "#FF2018", "#FF1493", "#FF18C9", "#CB18FF", "#9118FF", "#5C18FF", "#1F75FE", "#00BFFF", "#18FFE5", "#00FA9A", "#00FF00", "#7FFF00", "#CEFF1D" };
 // Основной grid
 GtkWidget *main_grid;
 // Поля с пользовательским url
@@ -30,8 +34,6 @@ GtkWidget *grid_side_panel;
 GtkWidget *label_item_emptry;
 // Средняя панель
 GtkWidget *middle_panel_grid;
-// Выбор вывода ошибки
-GtkWidget *error_button;
 struct ButtonData {
     GtkWidget *button;
     bool toggle;
@@ -47,34 +49,6 @@ bool vidio = false;
 // Выбрано ли аудио
 bool audio = false;
 
-int division_into_two_parts_text_and_textual(std::string input){
-    // Разделение строки на числовую и текстовую части
-    std::string numberPart;
-    std::string textPart;
-    for (size_t i = 0; i < input.size(); ++i) {
-        if (isdigit(input[i]) || input[i] == '.') {
-            numberPart += input[i];
-        } else {
-            textPart = input.substr(i);
-            break;
-        }
-	}
-    float number;
-    // Преобразование числовой части в float
-    std::istringstream(numberPart) >> number;
-    return 1;
-}
-
-
-class Base {
-public:
-    static void apply_css(const char* css) {
-        GtkCssProvider* provider = gtk_css_provider_new();
-        gtk_css_provider_load_from_string(provider, css);
-        gtk_style_context_add_provider_for_display(gtk_widget_get_display(window), GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_USER);
-        g_object_unref(provider);
-    }
-};
 
 class VidioDownload{
 public:
@@ -125,64 +99,27 @@ public:
 };
 
 
-class View_DL : public Base{
+class Base {
 public:
-    void button_edit_side_panel(){
-        
+    static void apply_css(const char* css) {
+        GtkCssProvider* provider = gtk_css_provider_new();
+        gtk_css_provider_load_from_string(provider, css);
+        gtk_style_context_add_provider_for_display(gtk_widget_get_display(window), GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_USER);
+        g_object_unref(provider);
     }
-    static void include_side_panel(GtkButton *button , ButtonData *data ){
-        data->toggle = !data->toggle;
-        int width = gtk_widget_get_width(GTK_WIDGET(window));
-        int height = gtk_widget_get_height(GTK_WIDGET(window));
+    static void window_coloring(GtkWidget *widget = NULL, gpointer data = NULL) {
+        int randomNumber_1, randomNumber_2;
+        randomNumber_1 = std::rand() % fons_calor.size();
+        do {
+            randomNumber_2 = std::rand() % fons_calor.size();
+        } while (randomNumber_2 == randomNumber_1);
+        apply_css(("window { background: linear-gradient(to bottom right, " + fons_calor[randomNumber_1] + ", " + fons_calor[randomNumber_2] + ");}").c_str());
+    }
+    static void normal_selected_item(std::string button) {
+	    apply_css(("." + button + " {background: rgba(0,0,0,0.3);} ." + button + ":hover {background: rgba(0,0,0,0.2);}").c_str());}
 
-        if (data->toggle){
-            // Увеличиваем ширину окна на ширину панели
-            gtk_window_set_default_size(GTK_WINDOW(window), width + 250, height);
-            gtk_button_set_child(GTK_BUTTON(data->button), gtk_image_new_from_file("logos/open_side_panel_image.png"));
-            gtk_widget_set_visible(scrolled_window_side_panel, TRUE);
-        }else{
-            gtk_widget_set_visible(scrolled_window_side_panel, FALSE);
-            gtk_button_set_child(GTK_BUTTON(data->button), gtk_image_new_from_file("logos/close_side_panel_image.png"));
-            // Уменьшаем ширину окна на ширину панели
-            gtk_window_set_default_size(GTK_WINDOW(window), width - 250, height);
-        }
-    }
-    void include_emptry_side_panel(){
-        gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(scrolled_window_side_panel), label_item_emptry);                
-    }
-    static void clicked_error_button(GtkWidget *widget, gpointer data){}
-    void creation_side_panel(){
-        scrolled_window_side_panel = gtk_scrolled_window_new();
-        gtk_grid_attach(GTK_GRID(main_grid), scrolled_window_side_panel, 7, 0, 1, 3);
-        gtk_widget_add_css_class(scrolled_window_side_panel, "scrolled_window_side_panel");
-        apply_css(".scrolled_window_side_panel{ min-width: 25px; min-height: 25px; margin-left: 10px; background-color: rgba(0,0,0,0.1);}");
-        gtk_widget_set_vexpand(scrolled_window_side_panel, TRUE);
-        gtk_widget_set_size_request(scrolled_window_side_panel, 250, 0);
-        gtk_widget_set_visible(scrolled_window_side_panel, FALSE);
-    }
-    void emptry_side_panel(){   
-        label_item_emptry = gtk_editable_label_new("Вы ничего не скачиваете");
-        gtk_widget_add_css_class(label_item_emptry, "label_item_emptry");
-    }
-    void include_and_creation_middle_panel(){
-        middle_panel_grid = gtk_grid_new();
-        gtk_grid_attach(GTK_GRID(main_grid), middle_panel_grid, 6, 0, 1, 3);
-        gtk_widget_add_css_class(middle_panel_grid, "middle_panel_grid");
-        apply_css(".middle_panel_grid{ margin-left: 10px;}");
-        error_button = gtk_button_new_with_label("Ошибка");
-        gtk_grid_attach(GTK_GRID(middle_panel_grid), error_button, 0, 0, 1, 1);
-        gtk_widget_set_vexpand(error_button, TRUE);
-        g_signal_connect(error_button, "clicked", G_CALLBACK(clicked_error_button), NULL);
-        // Создание кнопки скрытия боковой панели
-        GtkWidget *side_panel_button = gtk_button_new(); 
-        GtkWidget *close_side_panel_image = gtk_image_new_from_file("logos/close_side_panel_image.png");
-        gtk_widget_set_vexpand(side_panel_button, TRUE);
-        gtk_grid_attach(GTK_GRID(middle_panel_grid), side_panel_button, 0, 1, 1, 1);
-        gtk_button_set_child(GTK_BUTTON(side_panel_button), close_side_panel_image);
-        // Структура данных для хранения состояния кнопки и изображений
-        data_button_side_panel = new ButtonData{side_panel_button, false};
-        g_signal_connect(side_panel_button, "clicked", G_CALLBACK(include_side_panel), data_button_side_panel);
-
+    static void selected_item(std::string button) {
+	    apply_css(("." + button + " {background: rgba(0,0,0,0.5);} ." + button + ":hover {background: rgba(0,0,0,0.6);}").c_str());
     }
 };
 
@@ -273,19 +210,74 @@ short Error::state = 0;
 // Инициализация указателя на функцию
 void (*Error::error_object_red)() = Error::init;
 
-class StartUI : public Error, public VidioDownload, public View_DL{
-private:
-    static void normal_selected_item(std::string button) {
-	    apply_css(("." + button + " {background: rgba(0,0,0,0.3);} ." + button + ":hover {background: rgba(0,0,0,0.2);}").c_str());}
 
-    static void selected_item(std::string button) {
-	    apply_css(("." + button + " {background: rgba(0,0,0,0.5);} ." + button + ":hover {background: rgba(0,0,0,0.6);}").c_str());
+// Class for show panels(side, middle)
+class View_DL : public Error{
+public:
+    void button_edit_side_panel(){
+        
     }
+    static void include_side_panel(GtkButton *button , ButtonData *data ){
+        data->toggle = !data->toggle;
+        int width = gtk_widget_get_width(GTK_WIDGET(window));
+        int height = gtk_widget_get_height(GTK_WIDGET(window));
 
-    static void unselected_item(std::string button) {
-	    apply_css(("." + button + " {background: rgba(255,255,255,0.5);} ." + button + ":hover {background: rgba(255,255,255,0.6);}").c_str());
+        if (data->toggle){
+            // Увеличиваем ширину окна на ширину панели
+            gtk_window_set_default_size(GTK_WINDOW(window), width + 250, height);
+            gtk_button_set_child(GTK_BUTTON(data->button), gtk_image_new_from_file("logos/open_side_panel_image.png"));
+            gtk_widget_set_visible(scrolled_window_side_panel, TRUE);
+        }else{
+            gtk_widget_set_visible(scrolled_window_side_panel, FALSE);
+            gtk_button_set_child(GTK_BUTTON(data->button), gtk_image_new_from_file("logos/close_side_panel_image.png"));
+            // Уменьшаем ширину окна на ширину панели
+            gtk_window_set_default_size(GTK_WINDOW(window), width - 250, height);
+        }
     }
+    void include_emptry_side_panel(){
+        gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(scrolled_window_side_panel), label_item_emptry);                
+    }
+    void creation_side_panel(){
+        scrolled_window_side_panel = gtk_scrolled_window_new();
+        gtk_grid_attach(GTK_GRID(main_grid), scrolled_window_side_panel, 7, 0, 1, 3);
+        gtk_widget_add_css_class(scrolled_window_side_panel, "scrolled_window_side_panel");
+        apply_css(".scrolled_window_side_panel{ min-width: 25px; min-height: 25px; margin-left: 10px; background-color: rgba(0,0,0,0.1);}");
+        gtk_widget_set_vexpand(scrolled_window_side_panel, TRUE);
+        gtk_widget_set_size_request(scrolled_window_side_panel, 250, 0);
+        gtk_widget_set_visible(scrolled_window_side_panel, FALSE);
+    }
+    void emptry_side_panel(){   
+        label_item_emptry = gtk_editable_label_new("Вы ничего не скачиваете");
+        gtk_widget_add_css_class(label_item_emptry, "label_item_emptry");
+    }
+    void include_and_creation_middle_panel(){
+        middle_panel_grid = gtk_grid_new();
+        gtk_grid_attach(GTK_GRID(main_grid), middle_panel_grid, 6, 0, 1, 3);
+        gtk_widget_add_css_class(middle_panel_grid, "middle_panel_grid");
+        apply_css(".middle_panel_grid{ margin-left: 10px;}");
+        gtk_widget_set_size_request(middle_panel_grid, 90, 0);
+        GtkWidget *coloring_window_button = gtk_button_new();
+        gtk_button_set_child(GTK_BUTTON(coloring_window_button),gtk_image_new_from_file("logos/coloring_window.png"));
+        gtk_grid_attach(GTK_GRID(middle_panel_grid), coloring_window_button, 0, 0, 1, 1);
+        gtk_widget_set_vexpand(coloring_window_button, TRUE);
+        gtk_widget_set_hexpand(coloring_window_button, TRUE);
+        g_signal_connect(coloring_window_button, "clicked", G_CALLBACK(window_coloring), NULL);
+        // Создание кнопки скрытия боковой панели
+        GtkWidget *side_panel_button = gtk_button_new(); 
+        gtk_widget_set_vexpand(side_panel_button, TRUE);
+        gtk_widget_set_hexpand(side_panel_button, TRUE);
+        gtk_grid_attach(GTK_GRID(middle_panel_grid), side_panel_button, 0, 1, 1, 1);
+        gtk_button_set_child(GTK_BUTTON(side_panel_button), gtk_image_new_from_file("logos/close_side_panel_image.png"));
+        // Структура данных для хранения состояния кнопки и изображений
+        data_button_side_panel = new ButtonData{side_panel_button, false};
+        g_signal_connect(side_panel_button, "clicked", G_CALLBACK(include_side_panel), data_button_side_panel);
 
+    }
+};
+
+
+class ColoringButtonAndDownloadVidio : public View_DL, public VidioDownload{
+public:
     static void button_clicked_vidio(GtkWidget *widget, gpointer data) {
         vidio = vidio ? false : true;
 	    audio = false;
@@ -318,11 +310,13 @@ private:
 
     static void coloring_button(){
 	    if (vidio && audio) vidio = audio = false;
-	    vidio || audio ? normal_selected_item("button_download") : unselected_item("button_download");
+	    vidio || audio ? selected_item("button_download") : normal_selected_item("button_download");
 	    vidio ? selected_item("button_vidio") : normal_selected_item("button_vidio");
 	    audio ? selected_item("button_audio") : normal_selected_item("button_audio");
     }
+};
 
+class InitStart : public ColoringButtonAndDownloadVidio{
     void window_s() {
         // Создаем окно
 	    window = gtk_window_new();
@@ -332,18 +326,9 @@ private:
 
         // Инициализируем генератор случайных чисел текущим временем
         std::srand(static_cast<unsigned int>(std::time(nullptr)));
-
-        // Рандомайзер для фона окна
-        std::vector<std::string> fons_calor = { "#99FF18", "#FFF818", "#FFA918", "#FF6618", "#FF2018", "#FF1493", "#FF18C9", "#CB18FF", "#9118FF", "#5C18FF", "#1F75FE", "#00BFFF", "#18FFE5", "#00FA9A", "#00FF00", "#7FFF00", "#CEFF1D" };
-
-        int randomNumber_1, randomNumber_2;
-        randomNumber_1 = std::rand() % fons_calor.size();
-        do {
-            randomNumber_2 = std::rand() % fons_calor.size();
-        } while (randomNumber_2 == randomNumber_1);
-
-        // Генерируем CSS-запрос
-        apply_css(("window { background: linear-gradient(to bottom right, " + fons_calor[randomNumber_1] + ", " + fons_calor[randomNumber_2] + ");}").c_str());
+        // Раскрасска окна
+        window_coloring();
+        // Установка параметров titlebar
         apply_css(" .titlebar { background-color: rgba(0,0,0,0.2); color: rgb(255,255,255); background-image: none; background-blend-mode: overlay; } ");
     }
 
@@ -366,7 +351,7 @@ private:
         gtk_widget_set_vexpand(entry_url, TRUE);
 	    gtk_grid_attach(GTK_GRID(main_grid), entry_url, 0, 0, 6, 1);
 	
-        apply_css("entry { background-color: rgba(0,0,0,0.1); color: rgb(255,255,255); margin-bottom: 10px; }");
+        apply_css("entry { background-color: rgba(0,0,0,0.1); color: rgb(255,255,255); margin-bottom: 10px; min-height: 50px;}");
     }
 
     GtkWidget *create_custom_button() {
@@ -463,7 +448,7 @@ public:
 int main() {
     gtk_init();
     std::cout<<"dsf"<<std::endl;
-    StartUI start;
+    InitStart start;
     start.start();
     
     return 0;
