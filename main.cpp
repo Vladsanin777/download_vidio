@@ -15,6 +15,7 @@
 #include <vector>
 #include <ctime>
 #include <regex>
+#include <locale.h>
 
 
 
@@ -49,6 +50,17 @@ bool vidio = false;
 // Выбрано ли аудио
 bool audio = false;
 
+struct local_struct{
+    const char *logo_local_pash, *name_titlebar;
+    struct button{
+        const char *audio, *vidio, *change_background, *open_side_panel, *close_side_panel, *download_vidio, *download_audio, *url_youtube;
+    };
+    struct error{
+        const char *not_url, *error_url_vidio, *error_none_format;
+    };
+};
+
+local_struct local;
 
 class VidioDownload{
 public:
@@ -262,11 +274,18 @@ public:
         gtk_widget_set_vexpand(coloring_window_button, TRUE);
         gtk_widget_set_hexpand(coloring_window_button, TRUE);
         g_signal_connect(coloring_window_button, "clicked", G_CALLBACK(window_coloring), NULL);
+
+        GtkWidget *local_button = gtk_button_new(); 
+        gtk_widget_set_vexpand(local_button, TRUE);
+        gtk_widget_set_hexpand(local_button, TRUE);
+        gtk_grid_attach(GTK_GRID(middle_panel_grid), local_button, 0, 1, 1, 1);
+        gtk_button_set_child(GTK_BUTTON(local_button), gtk_image_new_from_file(local->logo_local_pash));
+
         // Создание кнопки скрытия боковой панели
         GtkWidget *side_panel_button = gtk_button_new(); 
         gtk_widget_set_vexpand(side_panel_button, TRUE);
         gtk_widget_set_hexpand(side_panel_button, TRUE);
-        gtk_grid_attach(GTK_GRID(middle_panel_grid), side_panel_button, 0, 1, 1, 1);
+        gtk_grid_attach(GTK_GRID(middle_panel_grid), side_panel_button, 0, 2, 1, 1);
         gtk_button_set_child(GTK_BUTTON(side_panel_button), gtk_image_new_from_file("logos/close_side_panel_image.png"));
         // Структура данных для хранения состояния кнопки и изображений
         data_button_side_panel = new ButtonData{side_panel_button, false};
@@ -322,7 +341,7 @@ class InitStart : public ColoringButtonAndDownloadVidio{
 	    window = gtk_window_new();
 
         gtk_window_set_default_size(GTK_WINDOW(window), 200, 200);
-        gtk_window_set_title(GTK_WINDOW(window), "Скачка видио с youtube!");
+        gtk_window_set_title(GTK_WINDOW(window), local->name_titlebar);
 
         // Инициализируем генератор случайных чисел текущим временем
         std::srand(static_cast<unsigned int>(std::time(nullptr)));
@@ -397,8 +416,17 @@ class InitStart : public ColoringButtonAndDownloadVidio{
         apply_css("button { background: rgba(0,0,0,0.3); border-radius: 0; color: rgb(255,255,255); border: 3px solid rgba(0,0,0,0); text-shadow: none; box-shadow: none; transition: background 0.3s ease;} button:active { background: rgba(0,0,0,0);} button:hover {background: rgba(0,0,0,0.2);}");
     }
     
+    void locale_start_languages(const char *locale_languages = setlocale(LC_ALL, "")){
+        if (strncmp(local_languages, "ru", 2) == 0){
+            local = new local_struct{"logos/local_ru.png", "Скачивальщик видио с YouTube!!!", {"Аудио", "Видио", "Смена фона", "Открыть боковую панель", "Закрыть боковую панель", "Скачать видио", "Скачать видио", "Скачать аудио", "Ссылка на видио с youtube"},{"Вы не ввели ссылку на видио!!!", "Неверная ссылка на видио!!!", "Невыбран формат для видио"}}
+        }else{
+            local = new local_struct{"logos/local_en.png", "YouTube video downloader!!!", {"Audio", "Vidio", "Change background", "Open side panel", "Close side panel", "Download video", "Download video", "Download audio", "Link to video from youtube"},{"You have not entered a link to the video!!!", "Incorrect link to the video!!!", "No format selected for the video"}}        }
+    }
 public:
     void start() {
+        // Инициализация языка
+        locale_start_languages();
+
 	    std::cout<<"ty"<<std::endl;
         window_s();
         std::cout<<"ty1"<<std::endl;
