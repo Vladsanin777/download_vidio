@@ -50,17 +50,22 @@ bool vidio = false;
 // Выбрано ли аудио
 bool audio = false;
 
-struct local_struct{
-    const char *logo_local_pash, *name_titlebar;
-    struct button{
-        const char *audio, *vidio, *change_background, *open_side_panel, *close_side_panel, *download_vidio, *download_audio, *url_youtube;
-    };
-    struct error{
-        const char *not_url, *error_url_vidio, *error_none_format;
-    };
+struct button {
+    const char *audio, *vidio, *change_background, *open_side_panel, *close_side_panel, *download_video, *download_audio, *url_youtube;
 };
 
-local_struct local;
+struct error {
+    const char *not_url, *error_url_vidio, *error_none_format;
+};
+
+struct local_struct {
+    const char *logo_local_pash, *name_titlebar;
+    button button_info;
+    error error_info;
+};
+
+local_struct *local;
+
 
 class VidioDownload{
 public:
@@ -222,6 +227,27 @@ short Error::state = 0;
 // Инициализация указателя на функцию
 void (*Error::error_object_red)() = Error::init;
 
+class ButtonCallbackLanguage{
+public:
+    void on_open_modal_language(GtkWidget *widget, gpointer *data){
+        // Создаем новое модальное окно
+        GtkWidget *dialog = gtk_dialog_new_with_buttons( "Модальное окно", GTK_WINDOW(window), GTK_DIALOG_MODAL, ("ОК"), GTK_RESPONSE_OK, NULL);
+        // Добавляем содержимое в модальное окно (например, метка)
+        GtkWidget *content_area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+        GtkWidget *label = gtk_label_new("Это модальное окно");
+        gtk_container_add(GTK_CONTAINER(content_area), label);
+
+        // Отображаем модальное окно
+        gtk_widget_show_all(dialog);
+
+        // Обработка ответа диалога
+        gint response = gtk_dialog_run(GTK_DIALOG(dialog));
+        if (response == GTK_RESPONSE_OK) g_print("ОК нажато\n");
+
+        // Закрываем модальное окно
+        gtk_widget_destroy(dialog);
+    }
+};
 
 // Class for show panels(side, middle)
 class View_DL : public Error{
@@ -280,6 +306,7 @@ public:
         gtk_widget_set_hexpand(local_button, TRUE);
         gtk_grid_attach(GTK_GRID(middle_panel_grid), local_button, 0, 1, 1, 1);
         gtk_button_set_child(GTK_BUTTON(local_button), gtk_image_new_from_file(local->logo_local_pash));
+        g_signal_connect(local_button, "clicked", G_CALLBAK(on_open_modal_language), NULL);
 
         // Создание кнопки скрытия боковой панели
         GtkWidget *side_panel_button = gtk_button_new(); 
@@ -322,9 +349,9 @@ public:
                     else if (audio) {strcpy(format, "audio");}
 		            VidioDownload VD;
 		            VD.command_cast(entry_text, format);
-	            }else error_main("entry", "Введена некоректная ссылка!!!");
-	        }else error_main("entry", "Ссылка не введина!!!");
-	    }else error_main("button", "Не выбран формат файла!!!");
+	            }else error_main("entry", local->error->error_url_vidio);
+	        }else error_main("entry", local->error->not_url);
+	    }else error_main("button", local->error->error_none_format);
     }
 
     static void coloring_button(){
@@ -417,10 +444,15 @@ class InitStart : public ColoringButtonAndDownloadVidio{
     }
     
     void locale_start_languages(const char *locale_languages = setlocale(LC_ALL, "")){
-        if (strncmp(local_languages, "ru", 2) == 0){
-            local = new local_struct{"logos/local_ru.png", "Скачивальщик видио с YouTube!!!", {"Аудио", "Видио", "Смена фона", "Открыть боковую панель", "Закрыть боковую панель", "Скачать видио", "Скачать видио", "Скачать аудио", "Ссылка на видио с youtube"},{"Вы не ввели ссылку на видио!!!", "Неверная ссылка на видио!!!", "Невыбран формат для видио"}}
+        if (strncmp(locale_languages, "ru", 2) == 0){
+            button btn_info = {"Аудио", "Видио", "Смена фона", "Открыть боковую панель", "Закрыть боковую панель", "Скачать видио", "Скачать аудио", "Ссылка на видио с youtube"};
+            error err_info = {"Вы не ввели ссылку на видио!!!", "Неверная ссылка на видио!!!", "Невыбран формат для видио"};
+            local = new local_struct{"logos/local_ru.png", "Скачивальщик видио с YouTube!!!", btn_info, err_info};
         }else{
-            local = new local_struct{"logos/local_en.png", "YouTube video downloader!!!", {"Audio", "Vidio", "Change background", "Open side panel", "Close side panel", "Download video", "Download video", "Download audio", "Link to video from youtube"},{"You have not entered a link to the video!!!", "Incorrect link to the video!!!", "No format selected for the video"}}        }
+            button btn_info = {"Audio", "Vidio", "Change background", "Open side panel", "Close side panel", "Download video", "Download audio", "Link to video from youtube"};
+            error err_info = {"You have not entered a link to the video!!!", "Incorrect link to the video!!!", "No format selected for the video"};
+            local = new local_struct{"logos/local_en.png", "YouTube video downloader!!!", btn_info, err_info};
+        }
     }
 public:
     void start() {
