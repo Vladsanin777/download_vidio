@@ -6,7 +6,19 @@
 #include <string>
 #include <vector>
 #include <ctime>
+#include <thread>
 
+std::string directory_explorer = "~/";
+
+std::string vidio_format = ".mp4";
+
+std::string audio_format = ".mp3";
+
+std::string vidio_max_resolution = "1080p";
+
+std::string audio_quality = "good";
+
+bool playlist = false;
 
 bool open_audio_panel = false;
 
@@ -27,7 +39,7 @@ struct title_box {
 };
 
 struct button {
-    const char *audio, *video, *change_background, *open_side_panel, *close_side_panel, *download_video, *download_audio, *url_youtube, *download, *ready;
+    const char *audio, *video, *change_background, *open_side_panel, *close_side_panel, *download_video, *download_audio, *url_youtube, *download, *ready, *explorer, *playlist;
 };
 
 struct error {
@@ -67,7 +79,8 @@ public:
         apply_css(("window { background: linear-gradient(to bottom right, " + fons_calor[randomNumber_1] + ", " + fons_calor[randomNumber_2] + ");}").c_str());
     }
     static void normal_selected_item(std::string button) {
-	    apply_css(("." + button + " {background: rgba(0,0,0,0.3);} ." + button + ":hover {background: rgba(0,0,0,0.2);}").c_str());}
+	    apply_css(("." + button + " {background: rgba(0,0,0,0.3);} ." + button + ":hover {background: rgba(0,0,0,0.2);}").c_str());
+    }
 
     static void selected_item(std::string button) {
 	    apply_css(("." + button + " {background: rgba(0,0,0,0.5);} ." + button + ":hover {background: rgba(0,0,0,0.6);}").c_str());
@@ -78,13 +91,13 @@ class LocalS{
 public:
     void locale_s(const char *locale_languages = setlocale(LC_ALL, "")){
         if (strncmp(locale_languages, "ru", 2) == 0){
-            button btn_info = {"Аудио", "Видео", "Смена фона", "Открыть боковую панель", "Закрыть боковую панель", "Скачать видио", "Скачать аудио", "Ссылка на видио с youtube", "Скачать!", "Готово!"};
+            button btn_info = {"Аудио", "Видео", "Смена фона", "Открыть боковую панель", "Закрыть боковую панель", "Скачать видио", "Скачать аудио", "Ссылка на видио с youtube", "Скачать!", "Готово!", "Папка?", "П.лист?"};
             error err_info = {"Вы не ввели ссылку на видио!!!", "Неверная ссылка на видио!!!", "Невыбран формат для видио"};
             title_box titb_info = {"Качество\nзвука", "Формат\nАудио", "Макс.\nразрешение", "Формат\nвидео"};
             button_name_sound_quality but_name_sound_qual_info = {"Лучшее", "Хорошее", "Средние", "Низкое"};
             local = new local_struct{"Вы ничего не скачиваете!!!", "ru", "logos/local_ru.png", "Скачивальщик видио с YouTube!!!", btn_info, err_info, titb_info, but_name_sound_qual_info};
         }else{
-            button btn_info = {"Audio", "Vidio", "Change background", "Open side panel", "Close side panel", "Download video", "Download audio", "Link to video from youtube", "Download!", "Ready!"};
+            button btn_info = {"Audio", "Vidio", "Change background", "Open side panel", "Close side panel", "Download video", "Download audio", "Link to video from youtube", "Download!", "Ready!", "directory?", "P.list?"};
             error err_info = {"You have not entered a link to the video!!!", "Incorrect link to the video!!!", "No format selected for the video"};
             title_box titb_info= {"Sound\nquality", "Format\naudio", "Max\nresolution", "Format\nvideo"};
             button_name_sound_quality but_name_sound_qual_info = {"Best", "Good", "Medium", "Low"};
@@ -93,8 +106,95 @@ public:
     }
 };
 
-class CallbackTitlebarButton{
+class DownloaderYT{
+    int download_yt(){
+        std::string playlist_command, format_audio_or_vidio;
+        if (playlist){
+            playlist_command = "--yes-playlist";
+        } else {
+            playlist_command = "--no-playlist";
+        }
+
+        if (open_audio_panel){
+            std::string quality;
+            switch (audio_quality){
+                case "best":
+                    quality = "0";
+                    break;
+                case "good":
+                    quality = "2";
+                    break;
+                case "medium":
+                    quality = "5";
+                    break;
+                case "low":
+                    quality = "7";
+                    break;
+                case "tough":
+                    quality = "9";
+                    break;
+            }
+            format_audio_or_vidio = " --extract-audio --audio-format " + audio_format + " --audio-quality " + quality;
+        } else if (open_video_panel){
+            std::string format;
+            switch (vidio_format) {
+                case "8k":
+                    format = "571";
+                    break;
+                case "4k":
+                    format = "313";
+                    break;
+                case "1440p":
+                    format = "271";
+                    break;
+                case "1080p":
+                    format = "137";
+                    break;
+                case "720p":
+                    format = "136";
+                    break;
+                case "480p":
+                    format = "135";
+                    break;
+                case "360p":
+                    format = "134";
+                    break;
+                case "240p":
+                    format = "133";
+                    break;
+                case "160p":
+                    format = "17"
+                    break;
+                case "144p":
+                    format = "160"
+                    break;
+            }
+            format_audio_or_vidio = " --recode-video " + vidio_format + " --format " + format
+        }
+        std::string command = "youtube-dl --no-warnings --newline " + playlist_command + format_audio_or_video + " --output " + directory_explorer + "%(title)s.%(ext)s " + video_url;
+        char buffer[1024];
+    
+        FILE* pipe = popen(command.c_str(), "r");
+
+        // Дописать и сделать video url
+    }
+};
+
+class CallbackTitlebarButton : public EditWindow{
 public:
+    // Функция-обработчик для события изменения размеров окна
+    static void on_window_height_changed(GObject *object = G_OBJECT(window), GParamSpec *pspec = NULL, gpointer data = NULL) {
+        int height, width;
+        gtk_window_get_default_size(GTK_WINDOW(object), &width, &height);
+        std::cout << "New window size: " << height << std::endl;
+        if (height <= 600){
+            apply_css("button.box_audio_video{font-size: 18px;} label.label_box_audio_video{font-size: 18px;} label.label_box_button{font-size: 30px;}");
+        }else if (height >= 900){
+            apply_css("button.box_audio_video{font-size: 45px;} label.label_box_audio_video{font-size: 40px;} label.label_box_button{font-size: 55px;}");
+        }else{
+            apply_css("button.box_audio_video{font-size: 30px;} label.label_box_audio_video{font-size: 22px;} label.label_box_button{font-size: 45px;}");
+        }
+    }
     // Обработчик для кнопки закрытия окна
     static void on_close_button_clicked(GtkWidget *widget, gpointer window) {
         gtk_window_close(GTK_WINDOW(window));
@@ -109,40 +209,101 @@ public:
     static void on_maximize_button_clicked(GtkWidget *widget, gpointer window) {
         if (gtk_window_is_maximized(GTK_WINDOW(window))) {
             gtk_window_unmaximize(GTK_WINDOW(window));
+            on_window_height_changed();
         } else {
+            apply_css("button.box_audio_video{font-size: 45px;} label.label_box_audio_video{font-size: 40px;} label.label_box_button{font-size: 45px;}");
             gtk_window_maximize(GTK_WINDOW(window));
         }
     }
 };
 
-class PressingButton : public EditWindow {
+class PressingButton : public CallbackTitlebarButton {
 public:
+
+    static void is_playlist(GtkWidget *widget, bool *pdata){
+        if (*pdata) {
+            apply_css("button.playlist{background-color: rgba(0, 0, 0, 0.3); color: rgb(255, 255, 255);} button.playlist:hover{background-color: rgba(0, 0, 0, 0.2); color: rgb(0, 0, 0);}");
+        }else{
+            apply_css("button.playlist{background-color: rgba(0, 0, 0, 0.5); color: rgb(0, 0, 0);} button.playlist:hover{background-color: rgba(0, 0, 0, 0.7); color: rgb(255, 255, 255);}");
+        }
+        *pdata = !*pdata;
+    }
+    
+    static void open_explorer_thread(GtkWidget *widget, bool *data){
+        std::string command = "zenity --file-selection --directory 2>/dev/null";
+        char buffer[1024];
+    
+        // Открытие диалогового окна и получение выбранного пути
+        FILE* pipe = popen(command.c_str(), "r");
+    
+    
+        // Чтение пути, который вернул Zenity
+        if (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+            std::string selected_path(buffer);
+        
+            // Удаляем символ новой строки, если он есть
+            if (!selected_path.empty() && selected_path.back() == '\n') {
+                selected_path.pop_back();
+            }
+        
+            directory_explorer = selected_path;
+        }
+    
+        pclose(pipe);
+        std::cout<<directory_explorer<<std::endl;
+    }
+    static void open_explorer(GtkWidget *widget, bool *pdata){
+        std::thread t(open_explorer_thread, widget, pdata);
+        t.detach();  // Отсоединяем поток
+    }
     static void hiding_audio_panel(GtkWidget *widget, bool *pdata) {
         std::cout<<"fvsdfs"<<std::endl;
-        gtk_widget_set_visible(main_widgets->box_audio, *pdata ? FALSE : TRUE);
-        gtk_widget_set_visible(main_widgets->box_video, FALSE);
-        // int width = gtk_widget_get_width(GTK_WIDGET(window));
-        // int height = gtk_widget_get_height(GTK_WIDGET(window));
-        // gtk_window_set_default_size(GTK_WINDOW(window), width + 250, height);
-        open_video_panel = false;
+        
+        int width_window = gtk_widget_get_width(window);
+        int height_window = gtk_widget_get_height(window);
+        std::cout<<"width_window "<<width_window<<"\theight_window "<<height_window<<std::endl;
+        std::cout<<"*pdata\t"<<*pdata<<std::endl;
+        if (open_video_panel) {
+            std::cout<<"DVFDVDF"<<std::endl;
+            gtk_widget_set_visible(main_widgets->box_video, FALSE);
+            open_video_panel = false;
+            width_window = std::round(width_window / 3 * 2);
+        }
         apply_css((std::string("button.video{background-color: rgba(0, 0, 0, 0.3);} button.video:hover{background-color: rgba(0, 0, 0, 0.2);} label.video_label_box_button{color: rgb(255, 255, 255);} label.video_label_box_button:hover{color: rgb(0, 0, 0);}") + std::string(*pdata ? "button.audio{background-color: rgba(0, 0, 0, 0.3);} button.audio:hover{background-color: rgba(0, 0, 0, 0.2);} label.audio_label_box_button{color: rgb(255, 255, 255);} label.audio_label_box_button:hover{color: rgb(0, 0, 0);}" : "button.audio{background-color: rgba(0, 0, 0, 0.5);} button.audio:hover{background-color: rgba(0, 0, 0, 0.7);} label.audio_label_box_button{color: rgb(0, 0, 0);} label.audio_label_box_button:hover{color: rgb(255, 255, 255);} ")).c_str());
+        std::cout<<"width_window "<<width_window<<"\theight_window "<<height_window<<std::endl;
+        // gtk_window_set_default_size(GTK_WINDOW(window), *pdata ? width_window / 3 * 2 : width_window * 1.5, height_window);
+        std::cout<<width_window<<"\t"<<*pdata<<std::endl;
+        std::cout<<(*pdata ? std::round(width_window / 3 * 2) : width_window * 1.5)<<std::endl;
+        
+        gtk_widget_set_visible(main_widgets->box_audio, *pdata ? FALSE : TRUE);
         *pdata = !*pdata;
     }
     static void hiding_video_panel(GtkWidget *widget, bool *pdata) {
         std::cout<<"fvsdfs2"<<std::endl;
-        gtk_widget_set_visible(main_widgets->box_video, *pdata ? FALSE : TRUE);
-        gtk_widget_set_visible(main_widgets->box_audio, FALSE);
-        open_audio_panel = false;
+        int width_window = gtk_widget_get_width(window);
+        int height_window = gtk_widget_get_height(window);
+        std::cout<<"width_window "<<width_window<<"\theight_window "<<height_window<<std::endl;
+        std::cout<<"*pdata\t"<<*pdata<<std::endl;
+        if (open_audio_panel) {
+            std::cout<<"hfjffkjfj"<<std::endl;
+            gtk_widget_set_visible(main_widgets->box_audio, FALSE);
+            open_audio_panel = false;
+            width_window = std::round(width_window / 3 * 2);
+        }
         apply_css((std::string("button.audio{background-color: rgba(0, 0, 0, 0.3);} button.audio:hover{background-color: rgba(0, 0, 0, 0.2);} label.audio_label_box_button{color: rgb(255, 255, 255);} label.audio_label_box_button:hover{color: rgb(0, 0, 0);}") + std::string(*pdata ? "button.video{background-color: rgba(0, 0, 0, 0.3);} button.video:hover{background-color: rgba(0, 0, 0, 0.2);} label.video_label_box_button{color: rgb(255, 255, 255);} label.video_label_box_button:hover{color: rgb(0, 0, 0);}" : "button.video{background-color: rgba(0, 0, 0, 0.5);} button.video:hover{background-color: rgba(0, 0, 0, 0.7);} label.video_label_box_button{color: rgb(0, 0, 0);} label.video_label_box_button:hover{color: rgb(255, 255, 255);}")).c_str());
+        std::cout<<"width_window "<<width_window<<"\theight_window "<<height_window<<std::endl;
+        // gtk_window_set_default_size(GTK_WINDOW(window), *pdata ? std::round(width_window / 3 * 2) : width_window * 1.5, height_window);
+        gtk_widget_set_visible(main_widgets->box_video, *pdata ? FALSE : TRUE);
         *pdata = !*pdata;
     }
+    
     static void hiding_bottom_panel(GtkWidget *widget, bool *pdata) {
         gtk_widget_set_visible(main_widgets->bottom_scrolled_window_info, *pdata ? FALSE : TRUE);
         *pdata = !*pdata;
     }
 };
 
-class InitStart : public LocalS, public CallbackTitlebarButton, public PressingButton{
+class InitStart : public LocalS, public PressingButton{
 public:
    
     // Обработчик для пользовательской кнопки
@@ -153,7 +314,9 @@ public:
         // Создаем окно
 	    window = gtk_window_new();
 
-        gtk_window_set_default_size(GTK_WINDOW(window), 400, 200);
+        g_signal_connect(window, "notify::default-height", G_CALLBACK(on_window_height_changed), nullptr);
+
+        gtk_window_set_default_size(GTK_WINDOW(window), 630, 480);
 
         std::cout<<"kl"<<std::endl;
         // Инициализируем генератор случайных чисел текущим временем
@@ -196,13 +359,14 @@ public:
         
         apply_css(R"( 
             button.window-main-button {
-                border-radius: 35px; /* Делает кнопку круглой */
-                background-color: rgba(0, 0, 0, 0.1); /* Убирает фон */
+                border-radius: 35px; 
+                background-color: rgba(0, 0, 0, 0.1);  
             }
 
             button.window-main-button:hover {
-                background-color: rgba(255, 255, 255, 0.1); /* Добавляет легкий эффект при наведении */
-            })");
+                background-color: rgba(255, 255, 255, 0.1);
+            })"
+        );
         status_download_titlebar = gtk_button_new_with_label(local->button_info.ready);
         gtk_header_bar_pack_start(GTK_HEADER_BAR(header_bar), status_download_titlebar);
 
@@ -241,12 +405,14 @@ public:
         GtkWidget *box_audio = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
         gtk_box_append(GTK_BOX(main_box), box_audio);
         gtk_widget_add_css_class(box_audio, "main_widget");
+        // gtk_widget_set_size_request(box_audio, 150, 300);
         gtk_widget_set_hexpand(box_audio, TRUE);
         gtk_widget_set_vexpand(box_audio, TRUE);
 
         GtkWidget *box_video = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
         gtk_box_append(GTK_BOX(main_box), box_video);
         gtk_widget_add_css_class(box_video, "main_widget");
+        // gtk_widget_set_size_request(box_video, 150, 300);
         gtk_widget_set_hexpand(box_video, TRUE);
         gtk_widget_set_vexpand(box_video, TRUE);
 
@@ -270,19 +436,53 @@ public:
         gtk_widget_add_css_class(entry_url, "entry_url");
 
         // Является ли эта ссылка ссылкой на плей лист
-        GtkWidget *button_is_playlist = gtk_button_new_with_label("Пелейлист?");
-        gtk_grid_attach(GTK_GRID(grid), button_is_playlist, 0, 1, 1, 1);
-        gtk_widget_set_hexpand(button_is_playlist, TRUE);
-        gtk_widget_set_vexpand(button_is_playlist, TRUE);
-        gtk_widget_add_css_class(button_is_playlist, "button_center");
+        GtkWidget *button_playlist = gtk_button_new_with_label("Пелейлист?");
+        gtk_grid_attach(GTK_GRID(grid), button_playlist, 0, 1, 1, 1);
+        gtk_widget_set_hexpand(button_playlist, TRUE);
+        gtk_widget_set_vexpand(button_playlist, TRUE);
+        gtk_widget_add_css_class(button_playlist, "button_center");
+        gtk_widget_add_css_class(button_playlist, "playlist");
+
+        g_signal_connect(button_playlist, "clicked", G_CALLBACK(is_playlist), &playlist);
+        GtkWidget *playlist_box_button = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+        GtkWidget *playlist_image_box_button = gtk_image_new_from_file("logos/playlist.png");
+        gtk_widget_set_hexpand(playlist_image_box_button, TRUE);
+        gtk_widget_set_vexpand(playlist_image_box_button, TRUE);
+        gtk_box_append(GTK_BOX(playlist_box_button), playlist_image_box_button);
+        GtkWidget *playlist_label_box_button = gtk_label_new(local->button_info.playlist);
+        gtk_widget_add_css_class(playlist_label_box_button, "label_box_button");
+        gtk_widget_add_css_class(playlist_label_box_button, "playlist_label_box_button");
+        gtk_widget_set_hexpand(playlist_label_box_button, TRUE);
+        gtk_widget_set_vexpand(playlist_label_box_button, TRUE);
+        gtk_box_append(GTK_BOX(playlist_box_button), playlist_label_box_button);
+        gtk_button_set_child(GTK_BUTTON(button_playlist), playlist_box_button);
+        gtk_widget_set_hexpand(playlist_box_button, TRUE);
+        gtk_widget_set_vexpand(playlist_box_button, TRUE);
 
         // Выбор папки
-        GtkWidget *button_directory = gtk_button_new();
-        gtk_grid_attach(GTK_GRID(grid), button_directory, 1, 1, 1, 1);
-        gtk_widget_set_hexpand(button_directory, TRUE);
-        gtk_widget_set_vexpand(button_directory, TRUE);
-        gtk_widget_add_css_class(button_directory, "button_center");
-        gtk_button_set_child(GTK_BUTTON(button_directory), gtk_image_new_from_file("logos/files.png"));
+        GtkWidget *button_explorer = gtk_button_new();
+        gtk_grid_attach(GTK_GRID(grid), button_explorer, 1, 1, 1, 1);
+        gtk_widget_set_hexpand(button_explorer, TRUE);
+        gtk_widget_set_vexpand(button_explorer, TRUE);
+        gtk_widget_add_css_class(button_explorer, "button_center");
+        gtk_widget_add_css_class(button_explorer, "explorer");
+
+        g_signal_connect(button_explorer, "clicked", G_CALLBACK(open_explorer), &directory_explorer);
+        GtkWidget *explorer_box_button = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+        GtkWidget *explorer_image_box_button = gtk_image_new_from_file("logos/explorer.png");
+        gtk_widget_set_hexpand(explorer_image_box_button, TRUE);
+        gtk_widget_set_vexpand(explorer_image_box_button, TRUE);
+        gtk_box_append(GTK_BOX(explorer_box_button), explorer_image_box_button);
+        GtkWidget *explorer_label_box_button = gtk_label_new(local->button_info.explorer);
+        gtk_widget_add_css_class(explorer_label_box_button, "label_box_button");
+        gtk_widget_add_css_class(explorer_label_box_button, "explorer_label_box_button");
+        gtk_widget_set_hexpand(explorer_label_box_button, TRUE);
+        gtk_widget_set_vexpand(explorer_label_box_button, TRUE);
+        gtk_box_append(GTK_BOX(explorer_box_button), explorer_label_box_button);
+        gtk_button_set_child(GTK_BUTTON(button_explorer), explorer_box_button);
+        gtk_widget_set_hexpand(explorer_box_button, TRUE);
+        gtk_widget_set_vexpand(explorer_box_button, TRUE);
+        
         
         // Выбор аудио
         button_audio = gtk_button_new();
@@ -378,7 +578,7 @@ public:
         gtk_widget_set_vexpand(download_box_button, TRUE);
 
 
-        apply_css("button.button_center{background-color: rgba(0, 0, 0, 0.3); border-radius: 0px;} label.label_box_button{font-size: 30px;} entry.entry_url{border-radius: 0px; background: rgba(0,0,0,0.2); border: 0px;} entry.entry_url:hover{background: rgba(0,0,0,0.1);}");
+        apply_css("button.button_center{background-color: rgba(0, 0, 0, 0.3); border-radius: 0px;} entry.entry_url{border-radius: 0px; background: rgba(0,0,0,0.2); border: 0px;} entry.entry_url:hover{background: rgba(0,0,0,0.1);}");
     }
     void create_bottom_scrolled_window_info() {
         GtkWidget *scrolled_window = main_widgets->bottom_scrolled_window_info;
@@ -396,9 +596,8 @@ public:
         gtk_widget_set_hexpand(label, TRUE);
         gtk_box_append(GTK_BOX(box), label);
         gtk_widget_set_visible(scrolled_window, FALSE);
-        // apply_css("box.bottom_box{background: rgba(0, 0, 0, 0.1);}");
     }
-    void create_left_scrolled_window_audio(){
+    void create_scrolled_window_audio(){
         GtkWidget *box = main_widgets->box_audio;
 
         GtkWidget *box_audio_sound_quality = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
@@ -417,24 +616,28 @@ public:
         GtkWidget *box_audio_sound_quality_nested = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
         
         gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(scrolled_window_audio_sound_quality), box_audio_sound_quality_nested);
-
+        // Button Best
         GtkWidget *button_audio_sound_quality_best = gtk_button_new_with_label(local->button_name_sound_quality_info.best);
-        gtk_widget_add_css_class(button_audio_sound_quality_best, "button_box_audio_video");
+        gtk_widget_add_css_class(button_audio_sound_quality_best, "box_audio_video");
+        gtk_widget_add_css_class(button_audio_sound_quality_best, "best_box_audio_video");
         gtk_box_append(GTK_BOX(box_audio_sound_quality_nested), button_audio_sound_quality_best);
         gtk_widget_set_vexpand(button_audio_sound_quality_best, TRUE);
-
+        // Button good
         GtkWidget *button_audio_sound_quality_good = gtk_button_new_with_label(local->button_name_sound_quality_info.good);
-        gtk_widget_add_css_class(button_audio_sound_quality_good, "button_box_audio_video");
+        gtk_widget_add_css_class(button_audio_sound_quality_good, "box_audio_video");
+        gtk_widget_add_css_class(button_audio_sound_quality_good, "good_box_audio_video");
         gtk_box_append(GTK_BOX(box_audio_sound_quality_nested), button_audio_sound_quality_good);
         gtk_widget_set_vexpand(button_audio_sound_quality_good, TRUE);
-
+        // Button medium
         GtkWidget *button_audio_sound_quality_medium = gtk_button_new_with_label(local->button_name_sound_quality_info.medium);
-        gtk_widget_add_css_class(button_audio_sound_quality_medium, "button_box_audio_video");
+        gtk_widget_add_css_class(button_audio_sound_quality_medium, "box_audio_video");
+        gtk_widget_add_css_class(button_audio_sound_quality_medium, "medium_box_audio_video");
         gtk_box_append(GTK_BOX(box_audio_sound_quality_nested), button_audio_sound_quality_medium);
         gtk_widget_set_vexpand(button_audio_sound_quality_medium, TRUE);
-
+        // Button low
         GtkWidget *button_audio_sound_quality_low = gtk_button_new_with_label(local->button_name_sound_quality_info.low);
-        gtk_widget_add_css_class(button_audio_sound_quality_low, "button_box_audio_video");
+        gtk_widget_add_css_class(button_audio_sound_quality_low, "box_audio_video");
+        gtk_widget_add_css_class(button_audio_sound_quality_low, "low_box_audio_video");
         gtk_box_append(GTK_BOX(box_audio_sound_quality_nested), button_audio_sound_quality_low);
         gtk_widget_set_vexpand(button_audio_sound_quality_low, TRUE);
 
@@ -454,36 +657,41 @@ public:
         GtkWidget *box_audio_format_audio_nested = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 
         gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(scrolled_window_audio_format_audio), box_audio_format_audio_nested);
-
+        // Button format aac
         GtkWidget *button_audio_format_audio_AAC = gtk_button_new_with_label("AAC");
-        gtk_widget_add_css_class(button_audio_format_audio_AAC, "button_box_audio_video");
+        gtk_widget_add_css_class(button_audio_format_audio_AAC, "box_audio_video");
+        gtk_widget_add_css_class(button_audio_format_audio_AAC, "acc_box_audio_video");
         gtk_box_append(GTK_BOX(box_audio_format_audio_nested), button_audio_format_audio_AAC);
         gtk_widget_set_vexpand(button_audio_format_audio_AAC, TRUE);
-
+        // Button format ogg
         GtkWidget *button_audio_format_audio_OGG = gtk_button_new_with_label("OGG");
-        gtk_widget_add_css_class(button_audio_format_audio_OGG, "button_box_audio_video");
+        gtk_widget_add_css_class(button_audio_format_audio_OGG, "box_audio_video");
+        gtk_widget_add_css_class(button_audio_format_audio_OGG, "ogg_box_audio_video");
         gtk_box_append(GTK_BOX(box_audio_format_audio_nested), button_audio_format_audio_OGG);
         gtk_widget_set_vexpand(button_audio_format_audio_OGG, TRUE);
-
+        // Button format mp3
         GtkWidget *button_audio_format_audio_MP3 = gtk_button_new_with_label("MP3");
-        gtk_widget_add_css_class(button_audio_format_audio_MP3, "button_box_audio_video");
+        gtk_widget_add_css_class(button_audio_format_audio_MP3, "box_audio_video");
+        gtk_widget_add_css_class(button_audio_format_audio_MP3, "mp3_box_audio_video");
         gtk_box_append(GTK_BOX(box_audio_format_audio_nested), button_audio_format_audio_MP3);
         gtk_widget_set_vexpand(button_audio_format_audio_MP3, TRUE);
-
+        // Button format opus
         GtkWidget *button_audio_format_audio_OPUS = gtk_button_new_with_label("OPUS");
-        gtk_widget_add_css_class(button_audio_format_audio_OPUS, "button_box_audio_video");
+        gtk_widget_add_css_class(button_audio_format_audio_OPUS, "box_audio_video");
+        gtk_widget_add_css_class(button_audio_format_audio_OPUS, "opus_box_audio_video");
         gtk_box_append(GTK_BOX(box_audio_format_audio_nested), button_audio_format_audio_OPUS);
         gtk_widget_set_vexpand(button_audio_format_audio_OPUS, TRUE);
-
+        // Button format wav
         GtkWidget *button_audio_format_audio_WAV = gtk_button_new_with_label("WAV");
-        gtk_widget_add_css_class(button_audio_format_audio_WAV, "button_box_audio_video");
+        gtk_widget_add_css_class(button_audio_format_audio_WAV, "box_audio_video");
+        gtk_widget_add_css_class(button_audio_format_audio_WAV, "wav_box_audio_video");
         gtk_box_append(GTK_BOX(box_audio_format_audio_nested), button_audio_format_audio_WAV);
         gtk_widget_set_vexpand(button_audio_format_audio_WAV, TRUE);
 
-
+        // Invisible All box audio
         gtk_widget_set_visible(box, FALSE);
     }
-    void create_right_scrolled_window_video(){
+    void create_scrolled_window_video(){
         GtkWidget *box = main_widgets->box_video;
         
         GtkWidget *box_video_max_resolution = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
@@ -502,44 +710,52 @@ public:
         GtkWidget *box_video_max_resolution_nested = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
         
         gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(scrolled_window_video_max_resolution), box_video_max_resolution_nested);
-
+        // Button resolution 4k
         GtkWidget *button_video_max_resolution_4K = gtk_button_new_with_label("4K");
-        gtk_widget_add_css_class(button_video_max_resolution_4K, "button_box_audio_video");
+        gtk_widget_add_css_class(button_video_max_resolution_4K, "box_audio_video");
+        gtk_widget_add_css_class(button_video_max_resolution_4K, "r4k_box_audio_video");
         gtk_box_append(GTK_BOX(box_video_max_resolution_nested), button_video_max_resolution_4K);
         gtk_widget_set_vexpand(button_video_max_resolution_4K, TRUE);
-
+        // Button resolution 1440p
         GtkWidget *button_video_max_resolution_1440p = gtk_button_new_with_label("1440p");
-        gtk_widget_add_css_class(button_video_max_resolution_1440p, "button_box_audio_video");
+        gtk_widget_add_css_class(button_video_max_resolution_1440p, "box_audio_video");
+        gtk_widget_add_css_class(button_video_max_resolution_1440p, "r1440p_box_audio_video");
         gtk_box_append(GTK_BOX(box_video_max_resolution_nested), button_video_max_resolution_1440p);
         gtk_widget_set_vexpand(button_video_max_resolution_1440p, TRUE);
-
+        // Button resolution 1080p
         GtkWidget *button_video_max_resolution_1080p = gtk_button_new_with_label("1080p");
-        gtk_widget_add_css_class(button_video_max_resolution_1080p, "button_box_audio_video");
+        gtk_widget_add_css_class(button_video_max_resolution_1080p, "box_audio_video");
+        gtk_widget_add_css_class(button_video_max_resolution_1080p, "r1080p_box_audio_video");
         gtk_box_append(GTK_BOX(box_video_max_resolution_nested), button_video_max_resolution_1080p);
         gtk_widget_set_vexpand(button_video_max_resolution_1080p, TRUE);
-
+        // Button resolution 720p
         GtkWidget *button_video_max_resolution_720p = gtk_button_new_with_label("720p");
-        gtk_widget_add_css_class(button_video_max_resolution_720p, "button_box_audio_video");
+        gtk_widget_add_css_class(button_video_max_resolution_720p, "box_audio_video");
+        gtk_widget_add_css_class(button_video_max_resolution_720p, "r720p_box_audio_video");
         gtk_box_append(GTK_BOX(box_video_max_resolution_nested), button_video_max_resolution_720p);
         gtk_widget_set_vexpand(button_video_max_resolution_720p, TRUE);
-
+        // Button resolution 480p
         GtkWidget *button_video_max_resolution_480p = gtk_button_new_with_label("480p");
-        gtk_widget_add_css_class(button_video_max_resolution_480p, "button_box_audio_video");
+        gtk_widget_add_css_class(button_video_max_resolution_480p, "box_audio_video");
+        gtk_widget_add_css_class(button_video_max_resolution_480p, "r480p_box_audio_video");
         gtk_box_append(GTK_BOX(box_video_max_resolution_nested), button_video_max_resolution_480p);
         gtk_widget_set_vexpand(button_video_max_resolution_480p, TRUE);
-
+        // Button resolution 360p
         GtkWidget *button_video_max_resolution_360p = gtk_button_new_with_label("360p");
-        gtk_widget_add_css_class(button_video_max_resolution_360p, "button_box_audio_video");
+        gtk_widget_add_css_class(button_video_max_resolution_360p, "box_audio_video");
+        gtk_widget_add_css_class(button_video_max_resolution_360p, "r360p_box_audio_video");
         gtk_box_append(GTK_BOX(box_video_max_resolution_nested), button_video_max_resolution_360p);
         gtk_widget_set_vexpand(button_video_max_resolution_360p, TRUE);
-
+        // Button resolution 240p
         GtkWidget *button_video_max_resolution_240p = gtk_button_new_with_label("240p");
-        gtk_widget_add_css_class(button_video_max_resolution_240p, "button_box_audio_video");
+        gtk_widget_add_css_class(button_video_max_resolution_240p, "box_audio_video");
+        gtk_widget_add_css_class(button_video_max_resolution_240p, "r240p_box_audio_video");
         gtk_box_append(GTK_BOX(box_video_max_resolution_nested), button_video_max_resolution_240p);
         gtk_widget_set_vexpand(button_video_max_resolution_240p, TRUE);
-
+        // Button resolution 144p
         GtkWidget *button_video_max_resolution_144p = gtk_button_new_with_label("144p");
-        gtk_widget_add_css_class(button_video_max_resolution_144p, "button_box_audio_video");
+        gtk_widget_add_css_class(button_video_max_resolution_144p, "box_audio_video");
+        gtk_widget_add_css_class(button_video_max_resolution_144p, "r144p_box_audio_video");
         gtk_box_append(GTK_BOX(box_video_max_resolution_nested), button_video_max_resolution_144p);
         gtk_widget_set_vexpand(button_video_max_resolution_144p, TRUE);
 
@@ -560,40 +776,48 @@ public:
         GtkWidget *box_video_format_video_nested = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 
         gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(scrolled_window_video_format_video), box_video_format_video_nested);
-
+        // Button format 3gp
         GtkWidget *button_video_format_video_3GP = gtk_button_new_with_label("3GP");
-        gtk_widget_add_css_class(button_video_format_video_3GP, "button_box_audio_video");
+        gtk_widget_add_css_class(button_video_format_video_3GP, "box_audio_video");
+        gtk_widget_add_css_class(button_video_format_video_3GP, "r3gp_box_audio_video");
         gtk_box_append(GTK_BOX(box_video_format_video_nested), button_video_format_video_3GP);
         gtk_widget_set_vexpand(button_video_format_video_3GP, TRUE);
-
+        // Button format flv
         GtkWidget *button_video_format_video_FLV = gtk_button_new_with_label("FLV");
-        gtk_widget_add_css_class(button_video_format_video_FLV, "button_box_audio_video");
+        gtk_widget_add_css_class(button_video_format_video_FLV, "box_audio_video");
+        gtk_widget_add_css_class(button_video_format_video_FLV, "flv_box_audio_video");
         gtk_box_append(GTK_BOX(box_video_format_video_nested), button_video_format_video_FLV);
         gtk_widget_set_vexpand(button_video_format_video_FLV, TRUE);
-
+        // Button format mp4
         GtkWidget *button_video_format_video_MP4 = gtk_button_new_with_label("MP4");
-        gtk_widget_add_css_class(button_video_format_video_MP4, "button_box_audio_video");
+        gtk_widget_add_css_class(button_video_format_video_MP4, "box_audio_video");
+        gtk_widget_add_css_class(button_video_format_video_MP4, "mp4_box_audio_video");
         gtk_box_append(GTK_BOX(box_video_format_video_nested), button_video_format_video_MP4);
         gtk_widget_set_vexpand(button_video_format_video_MP4, TRUE);
-
+        // Button format webm
         GtkWidget *button_video_format_video_WEBM = gtk_button_new_with_label("WEBM");
-        gtk_widget_add_css_class(button_video_format_video_WEBM, "button_box_audio_video");
+        gtk_widget_add_css_class(button_video_format_video_WEBM, "box_audio_video");
+        gtk_widget_add_css_class(button_video_format_video_WEBM, "webm_box_audio_video");
         gtk_box_append(GTK_BOX(box_video_format_video_nested), button_video_format_video_WEBM);
         gtk_widget_set_vexpand(button_video_format_video_WEBM, TRUE);
-
+        // Button format mkv
         GtkWidget *button_video_format_video_MKV = gtk_button_new_with_label("MKV");
-        gtk_widget_add_css_class(button_video_format_video_MKV, "button_box_audio_video");
+        gtk_widget_add_css_class(button_video_format_video_MKV, "box_audio_video");
+        gtk_widget_add_css_class(button_video_format_video_MKV, "mkv_box_audio_video");
         gtk_box_append(GTK_BOX(box_video_format_video_nested), button_video_format_video_MKV);
         gtk_widget_set_vexpand(button_video_format_video_MKV, TRUE);
 
-
+        // Invisible all box video
         gtk_widget_set_visible(box, FALSE);
     }
     void box_audio_vidio_style_start(){
-        apply_css("button.button_box_audio_video{border-radius: 0px; font-size: 30px;} label.label_box_audio_video{background-color: rgba(0, 0, 0, 0.2); color: rgb(255, 255, 255); font-size: 22px;} label.label_box_audio_video:hover{background-color: rgba(0, 0, 0, 0.1); color: rgb(0, 0, 0);}");
+        apply_css("button.box_audio_video{border-radius: 0px;} label.label_box_audio_video{background-color: rgba(0, 0, 0, 0.2); color: rgb(255, 255, 255);} label.label_box_audio_video:hover{background-color: rgba(0, 0, 0, 0.1); color: rgb(0, 0, 0);}");
     }
     void button_style_start(){
         apply_css("button { background: rgba(0,0,0,0.3); color: rgb(255,255,255); border: 0px; text-shadow: none; box-shadow: none; transition: background 0.3s ease;} button:active { background: rgba(0,0,0,0);} button:hover {background: rgba(0,0,0,0.2); color: rgb(0, 0, 0);}");
+    }
+    void box_audio_video_default(){
+        apply_css("button.good_box_audio_video{background-color: rgba(0, 0, 0, 0.5); color: rgb(0, 0, 0);} button.good_box_audio_video:hover{background-color: rgba(0, 0, 0, 0.7); color: rgb(255, 255, 255);} button.mp3_box_audio_video{background-color: rgba(0, 0, 0, 0.5); color: rgb(0, 0, 0);} button.mp3_box_audio_video:hover{background-color: rgba(0, 0, 0, 0.7); color: rgb(255, 255, 255);} button.r1080p_box_audio_video{background-color: rgba(0, 0, 0, 0.5); color: rgb(0, 0, 0);} button.r1080p_box_audio_video:hover{background-color: rgba(0, 0, 0, 0.7); color: rgb(255, 255, 255);} button.mp4_box_audio_video{background-color: rgba(0, 0, 0, 0.5); color: rgb(0, 0, 0);} button.mp4_box_audio_video:hover{background-color: rgba(0, 0, 0, 0.7); color: rgb(255, 255, 255);}");
     }
     void start() {
         locale_s();
@@ -604,11 +828,13 @@ public:
         create_center_grid();
         button_style_start();
         create_bottom_scrolled_window_info();
-        create_left_scrolled_window_audio();
-        create_right_scrolled_window_video();
+        create_scrolled_window_audio();
+        create_scrolled_window_video();
         box_audio_vidio_style_start();
+        box_audio_video_default();
     }
 };
+
 
 
 
