@@ -133,7 +133,7 @@ public:
         const char *entry_text_cstr = gtk_editable_get_text(GTK_EDITABLE(GTK_ENTRY(entry_url)));
 	    std::string entry_text = entry_text_cstr ? std::string(entry_text_cstr) : "";
         if (entry_text != "") {
-            std::string command = "yt-dlp --verbose --no-warnings --newline " + playlist_command + format_audio_or_video + " --output \"" + directory_explorer + "%(title)s.%(ext)s\" --list-formats \"" + entry_text + "\"";
+            std::string command = "yt-dlp --list-formats --verbose --no-warnings --newline " + playlist_command + format_audio_or_video + " --output \"" + directory_explorer + "%(title)s.%(ext)s\" \"" + entry_text + "\"";
             
             std::cout<<command<<std::endl;
             // Запуск команды для загрузки файла
