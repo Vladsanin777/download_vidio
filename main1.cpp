@@ -117,7 +117,19 @@ public:
 
 class DownloaderYT{
 public:
-    static void download_yt(){
+	static void download_update(GtkWidget *box, const char *percent, const char *size, const char *speed, const char *eta){
+
+
+		/*
+		if (percent != "100"){
+			
+		} else {
+			gtk_button_set_label(GTK_BUTTON(status_download_titlebar), local->button_info.ready);
+		}
+		*/
+	}
+
+    static void download_yt(const char *url, const char *name_video){
         std::string playlist_command, format_audio_or_video;
         if (playlist){
             playlist_command = "--yes-playlist";
@@ -133,7 +145,7 @@ public:
         const char *entry_text_cstr = gtk_editable_get_text(GTK_EDITABLE(GTK_ENTRY(entry_url)));
 	    std::string entry_text = entry_text_cstr ? std::string(entry_text_cstr) : "";
         if (entry_text != "") {
-            std::string command = "yt-dlp --list-formats --verbose --no-warnings --newline " + playlist_command + format_audio_or_video + " --output \"" + directory_explorer + "%(title)s.%(ext)s\" \"" + entry_text + "\"";
+            std::string command = "yt-dlp --no-warnings --newline " + playlist_command + format_audio_or_video + " --output \"" + directory_explorer + "%(title)s.%(ext)s\" \"" + entry_text + "\"";
             
             std::cout<<command<<std::endl;
             // Запуск команды для загрузки файла
@@ -145,8 +157,23 @@ public:
 
             // Переменные для получения информации о загрузке аудио или видео
             char buffer[256];
-            std::regex regexPattern(R"(\[download\]\s+(\d+\.\d+)% of\s+(\d+\.\d+KiB) at\s+([\d\.]+[KMG]iB/s) ETA (\d+:\d+))");
+            std::regex regexPattern(R"(\[download\]\s+(\d+\.\d+)% of\s+(\d+\.\d+[KMG]iB) at\s+([\d\.]+[KMG]iB/s) ETA (\d+:\d+))");
 	        std::smatch match;
+			GtkWidget *grid_download = gtk_grid_new();
+			GtkWidget *persent_label = gtk_label_new("0%");
+			gtk_grid_attach(GTK_GRID(grid_download), persent_label, 0, 0, 4, 2);
+			GtkWidget *scrolled_window_title_name = gtk_scrolled_window_new();
+			gtk_grid_attach(GTK_GRID(grid_download), scrolled_window_title_name, 4, 0, 20, 1);
+			GtkWidget *label_title_name = gtk_label_new(name_video);
+			gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(scrolled_window_title_name), label_title_name);
+			GtkWidget *label_size = gtk_label_new("0");
+			gtk_grid_attach(GTK_GRID(grid_download), label_size, 4, 1, 5, 1);
+			GtkWidget *label_size_install = gtk_label_new("0");
+			gtk_grid_attach(GTK_GRID(grid_download), label_size_install, 9, 1, 5, 1);
+			GtkWidget *label_speed = gtk_label_new("0");
+			gtk_grid_attach(GTK_GRID(grid_download), label_speed, 14, 1, 5, 1);
+			GtkWidget *label_eta = gtk_label_new("0");
+			gtk_grid_attach(GTK_GRID(grid_download), label_eta, 19, 1, 5, 1);
             
             // Цикл для обновления информации о загрузке аудио или видео
             while (fgets(buffer, sizeof(buffer), pipe) != NULL) {
@@ -154,17 +181,29 @@ public:
                 std::string line(buffer);
 	            std::cout<<buffer<<std::endl;
 
-
+				
                 if (std::regex_search(line, match, regexPattern)) {
-                    float percent = std::stof(match[1].str());
-                    std::string size = match[2].str();
-                    std::string speed = match[3].str();
-                    std::string eta = match[4].str();
+					//download_update(label, match[1], match[2], math[3], match[4]);
+					gtk_label_set_text(GTK_LABEL(persent_label), match[1].str().c_str());
+					gtk_label_set_text(GTK_LABEL(label_size), match[2].str().c_str());
+					const char *match5 = match[2].str().c_str();
+					match5 = strcat((std::stof(match5[strlen(match5) - 3] = '\0') / std::stof(match[1]) * 100).c_str(), match5 + strlen(match5) - 3);
+					gtk_label_set_text(GTK_LABEL(label_size_install), match5);
+					gtk_label_set_text(GTK_LABEL(label_speed), match[3].str().c_str());
+					gtk_label_set_text(GTK_LABEL(label_eta), match[4].str().c_str());
+					/*
+					const char *percent = match[1].c_str();
+                    std::string size = match[2].c_str();
+                    std::string speed = match[3].c_str();
+                    std::string eta = match[4].c_str();
+
+					
 
                     std::cout << "Процент: " << percent << "%, "
                               << "Размер: " << size << ", "
                               << "Скорость: " << speed << ", "
                               << "Оставшееся время: " << eta << std::endl;
+					*/
                 }
             }
             // Закрытие команды
