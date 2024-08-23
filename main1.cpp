@@ -3,13 +3,19 @@
 
 #include <gtk/gtk.h>
 #include <iostream>
+#include <array>
 #include <string>
+#include <memory>
+#include <stdexcept>
+#include <cstdio>
 #include <vector>
 #include <ctime>
 #include <thread>
 #include <regex>
 #include <iomanip>
 #include <sstream>
+#include <future>
+
 
 std::string directory_explorer = "~/";
 
@@ -77,6 +83,10 @@ struct bottom_scrolled_window_struct{
 
 bottom_scrolled_window_struct *bottom_scrolled_window;
 
+struct name_image_url{
+	std::string video_name, image_url;
+};
+
 class EditWindow {
 public:
     static void apply_css(const char* css) {
@@ -133,6 +143,57 @@ public:
 			gtk_button_set_label(GTK_BUTTON(status_download_titlebar), local->button_info.ready);
 		}
 		*/
+	}
+	static name_image_url exec(const char* cmd) {
+		std::array<char, 128> buffer;
+		std::string result;
+		FILE* pipe = popen(cmd, "r");
+		if (!pipe) {
+			throw std::runtime_error("popen() failed!");
+		}
+		try {
+			while (fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
+				result += buffer.data();
+			}
+		} catch (...) {
+			pclose(pipe);
+			throw;
+		}
+		pclose(pipe);
+		std::string name, image_url;
+		std::cout<<result<<std::endl;
+		
+		for (int i = size(result) - 2; true; i--){
+			if (result[i] == '\n'){
+				std::cout<<"jkkvnjnsdf"<<std::endl;
+				name = result.substr(i, size(result) - 1 - i);
+				image_url = result.substr(0, i - 1);
+				break;
+			}
+		}
+		
+		return name_image_url{name, image_url};
+	}
+
+	static name_image_url get_title_video_and_url_image(std::string url) {
+		std::string command = "yt-dlp --get-title --get-thumbnail --skip-download " + url;
+
+		try {
+			//   std::thread t(exec, command.c_str());
+			//   name_image_url output = t.detach();
+			// name_image_url output = exec(command.c_str());
+			//   return output;
+			std::packaged_task<name_image_url()> task([command]{
+				return exec(command.c_str());
+			});
+			std::future<name_image_url> future = task.get_future();
+			std::thread t(std::move(task));
+			t.detach();
+			return future.get(); // Блокирующий вызов, ждёт завершения задачи
+		} catch (const std::exception& e) {
+			std::cerr << "Error: " << e.what() << std::endl;
+			return name_image_url{"Название видео", "url image"};
+		}
 	}
 
     static void download_yt(const char *url, const char *name_video){
@@ -293,10 +354,13 @@ public:
         apply_css(("button.box_audio_video_" + data->number_element_box + "{background-color: rgba(0, 0, 0, 0.3); color: rgb(255, 255, 255);} button.box_audio_video_" + data->number_element_box + ":hover{background-color: rgba(0, 0, 0, 0.2); color: rgb(0, 0, 0);} button." + data->new_element + "_box_audio_video_" + data->number_element_box + "{background-color: rgba(0, 0, 0, 0.5); color: rgb(0, 0, 0);} button." + data->new_element + "_box_audio_video_" + data->number_element_box + ":hover{background-color: rgba(0, 0, 0, 0.7); color: rgb(255, 255, 255);}").c_str());
     }
     static void downloader_youtube(GtkWidget widget, gpointer *data){
+		
 		std::cout<<"fdgss"<<std::endl;
-		const char *entry_text_cstr = gtk_editable_get_text(GTK_EDITABLE(GTK_ENTRY(entry_url)));
-	    // std::string entry_text = entry_text_cstr ? std::string(entry_text_cstr) : "";
-        std::thread t(DownloaderYT::download_yt, entry_text_cstr, "Название видео");
+		const char *entry_text_c_str = gtk_editable_get_text(GTK_EDITABLE(GTK_ENTRY(entry_url)));
+		
+	    std::string entry_text = entry_text_c_str ? std::string(entry_text_c_str) : "";
+		name_image_url name_image_url_s = DownloaderYT::get_title_video_and_url_image(entry_text);
+        std::thread t(DownloaderYT::download_yt, entry_text_c_str, name_image_url_s.video_name.c_str());
         t.detach();
     }
 
