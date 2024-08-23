@@ -8,6 +8,8 @@
 #include <ctime>
 #include <thread>
 #include <regex>
+#include <iomanip>
+#include <sstream>
 
 std::string directory_explorer = "~/";
 
@@ -69,7 +71,11 @@ struct struct_button_box_audio_or_video{
 	std::string *pdata, data, new_element, number_element_box;
 };
 
+struct bottom_scrolled_window_struct{
+	GtkWidget *box_widget, *label_widget;
+};
 
+bottom_scrolled_window_struct *bottom_scrolled_window;
 
 class EditWindow {
 public:
@@ -106,7 +112,7 @@ public:
             button_name_sound_quality but_name_sound_qual_info = {"Лучшее", "Хорошее", "Средние", "Низкое", "Ужастное"};
             local = new local_struct{"Вы ничего не скачиваете!!!", "ru", "logos/local_ru.png", "Скачивальщик видио с YouTube!!!", btn_info, err_info, titb_info, but_name_sound_qual_info};
         }else{
-            button btn_info = {"Audio", "Vidio", "Change background", "Open side panel", "Close side panel", "Download video", "Download audio", "Link to video from youtube", "Download!", "Ready!", "directory?", "P.list?"};
+            button btn_info = {"Audio", "   Video   ", "Change background", "Open side panel", "Close side panel", "Download video", "Download audio", "Link to video from youtube", "Download!", "Ready!", "Directory?", "P.list?"};
             error err_info = {"You have not entered a link to the video!!!", "Incorrect link to the video!!!", "No format selected for the video"};
             title_box titb_info= {"Sound\nquality", "Format\naudio", "Max\nresolution", "Format\nvideo"};
             button_name_sound_quality but_name_sound_qual_info = {"Best", "Good", "Medium", "Low", "Tough"};
@@ -142,10 +148,9 @@ public:
         } else if (open_video_panel){
             format_audio_or_video = " --merge-output-format " + vidio_format + " --format " + vidio_max_resolution;
         }
-        const char *entry_text_cstr = gtk_editable_get_text(GTK_EDITABLE(GTK_ENTRY(entry_url)));
-	    std::string entry_text = entry_text_cstr ? std::string(entry_text_cstr) : "";
-        if (entry_text != "") {
-            std::string command = "yt-dlp --no-warnings --newline " + playlist_command + format_audio_or_video + " --output \"" + directory_explorer + "%(title)s.%(ext)s\" \"" + entry_text + "\"";
+        
+        if (url != "") {
+            std::string command = "yt-dlp --no-warnings --newline " + playlist_command + format_audio_or_video + " --output \"" + directory_explorer + "%(title)s.%(ext)s\" \"" + url + "\"";
             
             std::cout<<command<<std::endl;
             // Запуск команды для загрузки файла
@@ -160,20 +165,39 @@ public:
             std::regex regexPattern(R"(\[download\]\s+(\d+\.\d+)% of\s+(\d+\.\d+[KMG]iB) at\s+([\d\.]+[KMG]iB/s) ETA (\d+:\d+))");
 	        std::smatch match;
 			GtkWidget *grid_download = gtk_grid_new();
+			gtk_widget_set_vexpand(grid_download, TRUE);
+			gtk_widget_set_hexpand(grid_download, TRUE);
 			GtkWidget *persent_label = gtk_label_new("0%");
+			gtk_widget_set_vexpand(persent_label, TRUE);
+			gtk_widget_set_hexpand(persent_label, TRUE);
 			gtk_grid_attach(GTK_GRID(grid_download), persent_label, 0, 0, 4, 2);
 			GtkWidget *scrolled_window_title_name = gtk_scrolled_window_new();
+			gtk_widget_set_vexpand(scrolled_window_title_name, TRUE);
+			gtk_widget_set_hexpand(scrolled_window_title_name, TRUE);
 			gtk_grid_attach(GTK_GRID(grid_download), scrolled_window_title_name, 4, 0, 20, 1);
 			GtkWidget *label_title_name = gtk_label_new(name_video);
+			gtk_widget_set_vexpand(label_title_name, TRUE);
+			gtk_widget_set_hexpand(label_title_name, TRUE);
 			gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(scrolled_window_title_name), label_title_name);
+
 			GtkWidget *label_size = gtk_label_new("0");
+			gtk_widget_set_vexpand(label_size, TRUE);
+			gtk_widget_set_hexpand(label_size, TRUE);
 			gtk_grid_attach(GTK_GRID(grid_download), label_size, 4, 1, 5, 1);
 			GtkWidget *label_size_install = gtk_label_new("0");
+			gtk_widget_set_vexpand(label_size_install, TRUE);
+			gtk_widget_set_hexpand(label_size_install, TRUE);
 			gtk_grid_attach(GTK_GRID(grid_download), label_size_install, 9, 1, 5, 1);
 			GtkWidget *label_speed = gtk_label_new("0");
+			gtk_widget_set_vexpand(label_speed, TRUE);
+			gtk_widget_set_hexpand(label_speed, TRUE);
 			gtk_grid_attach(GTK_GRID(grid_download), label_speed, 14, 1, 5, 1);
 			GtkWidget *label_eta = gtk_label_new("0");
+			gtk_widget_set_vexpand(label_eta, TRUE);
+			gtk_widget_set_hexpand(label_eta, TRUE);
 			gtk_grid_attach(GTK_GRID(grid_download), label_eta, 19, 1, 5, 1);
+			gtk_box_append(GTK_BOX(bottom_scrolled_window->box_widget), grid_download);
+			gtk_widget_set_visible(bottom_scrolled_window->label_widget, FALSE);
             
             // Цикл для обновления информации о загрузке аудио или видео
             while (fgets(buffer, sizeof(buffer), pipe) != NULL) {
@@ -187,8 +211,17 @@ public:
 					gtk_label_set_text(GTK_LABEL(persent_label), match[1].str().c_str());
 					gtk_label_set_text(GTK_LABEL(label_size), match[2].str().c_str());
 					const char *match5 = match[2].str().c_str();
-					match5 = strcat((std::stof(match5[strlen(match5) - 3] = '\0') / std::stof(match[1]) * 100).c_str(), match5 + strlen(match5) - 3);
-					gtk_label_set_text(GTK_LABEL(label_size_install), match5);
+					std::string match51 = std::string((char*)(match5 + strlen(match5) - 3));
+					std::cout<<match51<<std::endl;
+					std::string match54 = std::to_string(std::stof(match5) / std::stof(match[1]) * 100);
+					for (int i = 0; true; i++){
+						if (match54[i] != '.'){
+							match54 = match54.substr(0, i + 2);
+							break;
+						}
+					}
+					const char *match52 = (match54 + match51).c_str();
+					gtk_label_set_text(GTK_LABEL(label_size_install), match52);
 					gtk_label_set_text(GTK_LABEL(label_speed), match[3].str().c_str());
 					gtk_label_set_text(GTK_LABEL(label_eta), match[4].str().c_str());
 					/*
@@ -220,10 +253,10 @@ public:
         int height, width;
         gtk_window_get_default_size(GTK_WINDOW(object), &width, &height);
         std::cout << "New window size: " << height << std::endl;
-        if (height <= 600){
-            apply_css("button.box_audio_video{font-size: 18px;} label.label_box_audio_video{font-size: 18px;} label.label_box_button{font-size: 30px;}");
-        }else if (height >= 900){
-            apply_css("button.box_audio_video{font-size: 45px;} label.label_box_audio_video{font-size: 40px;} label.label_box_button{font-size: 55px;}");
+        if (height <= 600 || width <= 840){
+            apply_css("button.box_audio_video{font-size: 18px;} label.label_box_audio_video{font-size: 22px;} label.label_box_button{font-size: 30px;}");
+        }else if (width >= 980){
+            apply_css("button.box_audio_video{font-size: 45px;} label.label_box_audio_video{font-size: 25px;} label.label_box_button{font-size: 55px;}");
         }else{
             apply_css("button.box_audio_video{font-size: 30px;} label.label_box_audio_video{font-size: 22px;} label.label_box_button{font-size: 45px;}");
         }
@@ -261,7 +294,9 @@ public:
     }
     static void downloader_youtube(GtkWidget widget, gpointer *data){
 		std::cout<<"fdgss"<<std::endl;
-        std::thread t(DownloaderYT::download_yt);
+		const char *entry_text_cstr = gtk_editable_get_text(GTK_EDITABLE(GTK_ENTRY(entry_url)));
+	    // std::string entry_text = entry_text_cstr ? std::string(entry_text_cstr) : "";
+        std::thread t(DownloaderYT::download_yt, entry_text_cstr, "Название видео");
         t.detach();
     }
 
@@ -320,7 +355,7 @@ public:
             open_video_panel = false;
             width_window = std::round(width_window / 3 * 2);
         }
-        apply_css((std::string("button.video{background-color: rgba(0, 0, 0, 0.3);} button.video:hover{background-color: rgba(0, 0, 0, 0.2);} label.video_label_box_button{color: rgb(255, 255, 255);} label.video_label_box_button:hover{color: rgb(0, 0, 0);}") + std::string(*pdata ? "button.audio{background-color: rgba(0, 0, 0, 0.3);} button.audio:hover{background-color: rgba(0, 0, 0, 0.2);} label.audio_label_box_button{color: rgb(255, 255, 255);} label.audio_label_box_button:hover{color: rgb(0, 0, 0);}" : "button.audio{background-color: rgba(0, 0, 0, 0.5);} button.audio:hover{background-color: rgba(0, 0, 0, 0.7);} label.audio_label_box_button{color: rgb(0, 0, 0);} label.audio_label_box_button:hover{color: rgb(255, 255, 255);} ")).c_str());
+        apply_css((std::string("button.video{background-color: rgba(0, 0, 0, 0.3); color: rgb(255, 255, 255);} button.video:hover{background-color: rgba(0, 0, 0, 0.2); color: rgb(0, 0, 0);}") + std::string(*pdata ? "button.audio{background-color: rgba(0, 0, 0, 0.3); color: rgb(255, 255, 255);} button.audio:hover{background-color: rgba(0, 0, 0, 0.2); color: rgb(0, 0, 0);}" : "button.audio{background-color: rgba(0, 0, 0, 0.5); color: rgb(0, 0, 0);} button.audio:hover{background-color: rgba(0, 0, 0, 0.7); color: rgb(255, 255, 255);}")).c_str());
         std::cout<<"width_window "<<width_window<<"\theight_window "<<height_window<<std::endl;
         // gtk_window_set_default_size(GTK_WINDOW(window), *pdata ? width_window / 3 * 2 : width_window * 1.5, height_window);
         std::cout<<width_window<<"\t"<<*pdata<<std::endl;
@@ -341,7 +376,7 @@ public:
             open_audio_panel = false;
             width_window = std::round(width_window / 3 * 2);
         }
-        apply_css((std::string("button.audio{background-color: rgba(0, 0, 0, 0.3);} button.audio:hover{background-color: rgba(0, 0, 0, 0.2);} label.audio_label_box_button{color: rgb(255, 255, 255);} label.audio_label_box_button:hover{color: rgb(0, 0, 0);}") + std::string(*pdata ? "button.video{background-color: rgba(0, 0, 0, 0.3);} button.video:hover{background-color: rgba(0, 0, 0, 0.2);} label.video_label_box_button{color: rgb(255, 255, 255);} label.video_label_box_button:hover{color: rgb(0, 0, 0);}" : "button.video{background-color: rgba(0, 0, 0, 0.5);} button.video:hover{background-color: rgba(0, 0, 0, 0.7);} label.video_label_box_button{color: rgb(0, 0, 0);} label.video_label_box_button:hover{color: rgb(255, 255, 255);}")).c_str());
+        apply_css((std::string("button.audio{background-color: rgba(0, 0, 0, 0.3); color: rgb(255, 255, 255);} button.audio:hover{background-color: rgba(0, 0, 0, 0.2); color: rgb(0, 0, 0);}") + std::string(*pdata ? "button.video{background-color: rgba(0, 0, 0, 0.3); color: rgb(255, 255, 255);} button.video:hover{background-color: rgba(0, 0, 0, 0.2); color: rgb(0, 0, 0);}" : "button.video{background-color: rgba(0, 0, 0, 0.5); color: rgb(0, 0, 0);} button.video:hover{background-color: rgba(0, 0, 0, 0.7); color: rgb(255, 255, 255);} ")).c_str());
         std::cout<<"width_window "<<width_window<<"\theight_window "<<height_window<<std::endl;
         // gtk_window_set_default_size(GTK_WINDOW(window), *pdata ? std::round(width_window / 3 * 2) : width_window * 1.5, height_window);
         gtk_widget_set_visible(main_widgets->box_video, *pdata ? FALSE : TRUE);
@@ -366,7 +401,7 @@ public:
 	    window = gtk_window_new();
 
         g_signal_connect(window, "notify::default-height", G_CALLBACK(on_window_height_changed), nullptr);
-
+		g_signal_connect(window, "notify::default-width", G_CALLBACK(on_window_height_changed), nullptr);
         gtk_window_set_default_size(GTK_WINDOW(window), 630, 480);
 
         std::cout<<"kl"<<std::endl;
@@ -472,6 +507,7 @@ public:
         gtk_widget_add_css_class(bottom_scrolled_window_info, "main_widget");
         gtk_widget_set_hexpand(bottom_scrolled_window_info, TRUE);
         gtk_widget_set_vexpand(bottom_scrolled_window_info, TRUE);
+		
 
         apply_css("box.main_widget{min-width: 150px; margin: 5px;} grid.main_widget{min-height: 300px; min-width: 450px; margin: 5px;} scrolledwindow.main_widget{min-height: 100px; margin-top: 10px;}"); 
         main_widgets = new main_widgets_struct{main_box, center_grid, box_audio, box_video, bottom_scrolled_window_info};
@@ -650,6 +686,7 @@ public:
         gtk_widget_set_hexpand(label, TRUE);
         gtk_box_append(GTK_BOX(box), label);
         gtk_widget_set_visible(scrolled_window, FALSE);
+		bottom_scrolled_window = new bottom_scrolled_window_struct{box, label};
     }
     void cretion_button_box_audio_or_vidio(std::string number_element_css, std::string param_button_css, const char *label_button, GtkWidget *box, std::string *pdata, std::string data){
         GtkWidget *button = gtk_button_new_with_label(label_button);
