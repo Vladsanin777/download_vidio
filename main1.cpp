@@ -353,16 +353,36 @@ public:
 		std::cout<<"kgddsjjcv"<<std::endl;
         apply_css(("button.box_audio_video_" + data->number_element_box + "{background-color: rgba(0, 0, 0, 0.3); color: rgb(255, 255, 255);} button.box_audio_video_" + data->number_element_box + ":hover{background-color: rgba(0, 0, 0, 0.2); color: rgb(0, 0, 0);} button." + data->new_element + "_box_audio_video_" + data->number_element_box + "{background-color: rgba(0, 0, 0, 0.5); color: rgb(0, 0, 0);} button." + data->new_element + "_box_audio_video_" + data->number_element_box + ":hover{background-color: rgba(0, 0, 0, 0.7); color: rgb(255, 255, 255);}").c_str());
     }
-    static void downloader_youtube(GtkWidget widget, gpointer *data){
+    static void downloader_youtube_s(GtkWidget *widget, gpointer *data){
 		
 		std::cout<<"fdgss"<<std::endl;
 		const char *entry_text_c_str = gtk_editable_get_text(GTK_EDITABLE(GTK_ENTRY(entry_url)));
 		
 	    std::string entry_text = entry_text_c_str ? std::string(entry_text_c_str) : "";
 		name_image_url name_image_url_s = DownloaderYT::get_title_video_and_url_image(entry_text);
+		GtkWidget *window_video = gtk_window_new();
+		// Контейнер для виджетов
+		GtkWidget *box_video_window = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+	    gtk_window_set_child(GTK_WINDOW(window_video), box_video_window);
+		gtk_box_append(GTK_BOX(box_video_window), gtk_image_new_from_file(name_image_url_s.image_url.c_str()));
+		gtk_box_append(GTK_BOX(box_video_window), gtk_label_new(name_image_url_s.video_name.c_str()));
+		GtkWidget *box_video_window_button = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+		gtk_box_append(GTK_BOX(box_video_window), box_video_window_button);
+		GtkWidget *button_video_download = gtk_button_new();
+		gtk_box_append(GTK_BOX(box_video_window_button), button_video_download);
+		GtkWidget *button_video_cancel = gtk_button_new();
+		gtk_box_append(GTK_BOX(box_video_window_button), button_video_cancel);
+		gtk_window_present(GTK_WINDOW(window_video));
+		/*
         std::thread t(DownloaderYT::download_yt, entry_text_c_str, name_image_url_s.video_name.c_str());
         t.detach();
+		*/
     }
+
+	static void downloader_youtube(GtkWidget *widget, gpointer *data){
+		std::thread t(downloader_youtube_s, widget, data);
+		t.detach();
+	}
 
     static void is_playlist(GtkWidget *widget, bool *pdata){
         if (*pdata) {
@@ -461,6 +481,7 @@ public:
         g_print("Custom button clicked!\n");
     }
     void window_s() {
+		
         // Создаем окно
 	    window = gtk_window_new();
 
