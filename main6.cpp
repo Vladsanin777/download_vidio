@@ -1,87 +1,114 @@
 #include <gtk/gtk.h>
-#include <graphene.h>
+#include <curl/curl.h>
+#include <vector>
+#include <iostream>
 
-static void on_ok_button_clicked(GtkButton *button, gpointer user_data) {
-    g_print("OK pressed\n");
-    GtkWindow *dialog = GTK_WINDOW(user_data);
-    gtk_window_destroy(dialog);
+// Структура для хранения загруженных данных
+struct MemoryStruct {
+    std::vector<unsigned char> data;
+};
+
+// Callback функция для записи загруженных данных
+static size_t WriteMemoryCallback(void* contents, size_t size, size_t nmemb, void* userp) {
+    size_t total_size = size * nmemb;
+    MemoryStruct* mem = static_cast<MemoryStruct*>(userp);
+    unsigned char* data = static_cast<unsigned char*>(contents);
+
+    // Добавляем загруженные данные в вектор
+    mem->data.insert(mem->data.end(), data, data + total_size);
+
+    return total_size;
 }
 
-static void on_cancel_button_clicked(GtkButton *button, gpointer user_data) {
-    g_print("Cancel pressed\n");
-    GtkWindow *dialog = GTK_WINDOW(user_data);
-    gtk_window_destroy(dialog);
-}
+// Функция для загрузки изображения с помощью libcurl
+bool download_image(const std::string& url, MemoryStruct& chunk) {
+    CURL* curl_handle;
+    CURLcode res;
 
-static void open_modal_window(GtkWidget *parent_grid, GtkWindow *parent_window) {
-    // Создание модального окна
-    GtkWidget *dialog = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-    gtk_window_set_title(GTK_WINDOW(dialog), "Modal Dialog");
-    gtk_window_set_modal(GTK_WINDOW(dialog), TRUE);
-    gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(parent_window));
-    gtk_window_set_default_size(GTK_WINDOW(dialog), 200, 100);
+    // Инициализация curl
+    curl_global_init(CURL_GLOBAL_ALL);
+    curl_handle = curl_easy_init();
 
-    // Контейнер для виджетов
-    GtkWidget *content_area = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
-    gtk_window_set_child(GTK_WINDOW(dialog), content_area);
+    if (curl_handle) {
+        curl_easy_setopt(curl_handle, CURLOPT_URL, url.c_str());
+        curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
+        curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, (void*)&chunk);
+        curl_easy_setopt(curl_handle, CURLOPT_USERAGENT, "libcurl-agent/1.0");
 
-    // Добавление метки
-    GtkWidget *label = gtk_label_new("This is a modal dialog");
-    gtk_box_append(GTK_BOX(content_area), label);
+        // Выполняем запрос
+        res = curl_easy_perform(curl_handle);
 
-    // Добавление кнопок
-    GtkWidget *button_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
-    gtk_box_append(GTK_BOX(content_area), button_box);
+        // Проверяем ошибки
+        if (res != CURLE_OK) {
+            std::cerr << "curl_easy_perform() failed: " << curl_easy_strerror(res) << std::endl;
+            curl_easy_cleanup(curl_handle);
+            return false;
+        }
 
-    GtkWidget *ok_button = gtk_button_new_with_label("OK");
-    gtk_box_append(GTK_BOX(button_box), ok_button);
-    g_signal_connect(ok_button, "clicked", G_CALLBACK(on_ok_button_clicked), dialog);
-
-    GtkWidget *cancel_button = gtk_button_new_with_label("Cancel");
-    gtk_box_append(GTK_BOX(button_box), cancel_button);
-    g_signal_connect(cancel_button, "clicked", G_CALLBACK(on_cancel_button_clicked), dialog);
-
-    // Получение позиции родительского grid
-    graphene_point_t point = GRAPHENE_POINT_INIT(0, 0); // Инициализация начальной точки
-    graphene_point_t transformed_point;
-
-    if (gtk_widget_compute_point(parent_grid, GTK_WIDGET(parent_window), &point, &transformed_point)) {
-        // Позиционирование модального окна над родительским grid
-        gtk_window_move(GTK_WINDOW(dialog), static_cast<int>(transformed_point.x), static_cast<int>(transformed_point.y));
+        // Очистка
+        curl_easy_cleanup(curl_handle);
     }
 
-    // Отображение модального окна
-    gtk_widget_show(dialog);
+    curl_global_cleanup();
+    return true;
 }
 
+// Функция для создания главного окна приложения и отображения изображения
 static void activate(GtkApplication* app, gpointer user_data) {
-    // Создание основного окна
-    GtkWidget *main_window = gtk_application_window_new(app);
-    gtk_window_set_title(GTK_WINDOW(main_window), "Main Window");
-    gtk_window_set_default_size(GTK_WINDOW(main_window), 400, 200);
+    // URL изображения
+    std::string url = "https://i.ytimg.com/vi/zhE4Uq9Ayc8/maxresdefault.jpg";
+    MemoryStruct chunk;
 
-    // Создание grid
-    GtkWidget *grid = gtk_grid_new();
-    gtk_window_set_child(GTK_WINDOW(main_window), grid);
+    // Загружаем изображение
+    if (!download_image(url, chunk)) {
+        std::cerr << "Failed to download image." << std::endl;
+        return;
+    }
 
-    // Кнопка для открытия модального окна
-    GtkWidget *open_button = gtk_button_new_with_label("Open Modal");
-    gtk_grid_attach(GTK_GRID(grid), open_button, 0, 0, 1, 1);
+    // Создаем буфер GdkPixbuf из загруженных данных
+    GdkPixbufLoader* loader = gdk_pixbuf_loader_new();
+    if (!gdk_pixbuf_loader_write(loader, chunk.data.data(), chunk.data.size(), NULL)) {
+        std::cerr << "Failed to load image data into GdkPixbufLoader." << std::endl;
+        g_object_unref(loader);
+        return;
+    }
 
-    // Подключение сигнала нажатия кнопки для открытия модального окна
-    g_signal_connect_data(open_button, "clicked", G_CALLBACK(open_modal_window), grid, NULL, G_CONNECT_AFTER);
+    GdkPixbuf* pixbuf = gdk_pixbuf_loader_get_pixbuf(loader);
+    gdk_pixbuf_loader_close(loader, NULL);
 
-    // Отображение основного окна
-    gtk_widget_show(main_window);
+    // Преобразуем GdkPixbuf в GdkTexture
+    GdkTexture* texture = gdk_texture_new_for_pixbuf(pixbuf);
+
+    // Создаем окно GTK
+    GtkWidget* window = gtk_application_window_new(app);
+    gtk_window_set_default_size(GTK_WINDOW(window), 400, 400);
+    gtk_window_set_title(GTK_WINDOW(window), "Image Viewer");
+
+    // Создаем GtkImage из GdkTexture
+    GtkWidget* image = gtk_image_new_from_paintable(GDK_PAINTABLE(texture));
+
+    // Задаем минимальный размер изображения (например, 100x100 пикселей)
+    gtk_image_set_pixel_size(GTK_IMAGE(image), 100);
+
+    // Добавляем изображение в окно
+    gtk_window_set_child(GTK_WINDOW(window), image);
+
+    // Устанавливаем минимальный размер окна
+    gtk_window_set_default_size(GTK_WINDOW(window), 400, 400);
+    gtk_widget_set_size_request(window, 100, 100);
+
+    // Делаем окно видимым
+    gtk_widget_set_visible(window, TRUE);
+
+    // Освобождаем ресурсы
+    g_object_unref(texture);
+    g_object_unref(loader);
 }
 
-int main(int argc, char **argv) {
-    GtkApplication *app;
-    int status;
-
-    app = gtk_application_new("org.gtk.example", G_APPLICATION_FLAGS_NONE);
+int main(int argc, char** argv) {
+    GtkApplication* app = gtk_application_new("com.example.imageviewer", G_APPLICATION_DEFAULT_FLAGS);
     g_signal_connect(app, "activate", G_CALLBACK(activate), NULL);
-    status = g_application_run(G_APPLICATION(app), argc, argv);
+    int status = g_application_run(G_APPLICATION(app), argc, argv);
     g_object_unref(app);
 
     return status;

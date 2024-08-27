@@ -144,7 +144,7 @@ public:
 		}
 		*/
 	}
-	static name_image_url exec(const char* cmd) {
+	static name_image_url* exec(const char* cmd) {
 		std::array<char, 128> buffer;
 		std::string result;
 		FILE* pipe = popen(cmd, "r");
@@ -166,16 +166,17 @@ public:
 		for (int i = size(result) - 2; true; i--){
 			if (result[i] == '\n'){
 				std::cout<<"jkkvnjnsdf"<<std::endl;
-				name = result.substr(i, size(result) - 1 - i);
-				image_url = result.substr(0, i - 1);
+				image_url = result.substr(i, size(result) - 1 - i);
+				name = result.substr(0, i);
 				break;
 			}
 		}
+		std::cout<<"image_url    "<<image_url<<std::endl;
 		
-		return name_image_url{name, image_url};
+		return new name_image_url{name, image_url};
 	}
 
-	static name_image_url get_title_video_and_url_image(std::string url) {
+	static name_image_url* get_title_video_and_url_image(std::string url) {
 		std::string command = "yt-dlp --get-title --get-thumbnail --skip-download " + url;
 
 		try {
@@ -183,16 +184,16 @@ public:
 			//   name_image_url output = t.detach();
 			// name_image_url output = exec(command.c_str());
 			//   return output;
-			std::packaged_task<name_image_url()> task([command]{
+			std::packaged_task<name_image_url*()> task([command]{
 				return exec(command.c_str());
 			});
-			std::future<name_image_url> future = task.get_future();
+			std::future<name_image_url*> future = task.get_future();
 			std::thread t(std::move(task));
 			t.detach();
 			return future.get(); // Блокирующий вызов, ждёт завершения задачи
 		} catch (const std::exception& e) {
 			std::cerr << "Error: " << e.what() << std::endl;
-			return name_image_url{"Название видео", "url image"};
+			return new name_image_url{"Название видео", "url image"};
 		}
 	}
 
@@ -353,19 +354,16 @@ public:
 		std::cout<<"kgddsjjcv"<<std::endl;
         apply_css(("button.box_audio_video_" + data->number_element_box + "{background-color: rgba(0, 0, 0, 0.3); color: rgb(255, 255, 255);} button.box_audio_video_" + data->number_element_box + ":hover{background-color: rgba(0, 0, 0, 0.2); color: rgb(0, 0, 0);} button." + data->new_element + "_box_audio_video_" + data->number_element_box + "{background-color: rgba(0, 0, 0, 0.5); color: rgb(0, 0, 0);} button." + data->new_element + "_box_audio_video_" + data->number_element_box + ":hover{background-color: rgba(0, 0, 0, 0.7); color: rgb(255, 255, 255);}").c_str());
     }
-    static void downloader_youtube_s(GtkWidget *widget, gpointer *data){
-		
-		std::cout<<"fdgss"<<std::endl;
-		const char *entry_text_c_str = gtk_editable_get_text(GTK_EDITABLE(GTK_ENTRY(entry_url)));
-		
-	    std::string entry_text = entry_text_c_str ? std::string(entry_text_c_str) : "";
-		name_image_url name_image_url_s = DownloaderYT::get_title_video_and_url_image(entry_text);
+    // Функция обновления UI в главном потоке
+	static gboolean update_ui(gpointer data) {
+		name_image_url* name_image_url_s = static_cast<name_image_url*>(data);
+		std::cout<<"bjksv\t"<<name_image_url_s->image_url<<std::endl;
+
 		GtkWidget *window_video = gtk_window_new();
-		// Контейнер для виджетов
 		GtkWidget *box_video_window = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
-	    gtk_window_set_child(GTK_WINDOW(window_video), box_video_window);
-		gtk_box_append(GTK_BOX(box_video_window), gtk_image_new_from_file(name_image_url_s.image_url.c_str()));
-		gtk_box_append(GTK_BOX(box_video_window), gtk_label_new(name_image_url_s.video_name.c_str()));
+		gtk_window_set_child(GTK_WINDOW(window_video), box_video_window);
+		gtk_box_append(GTK_BOX(box_video_window), gtk_image_new_from_file(name_image_url_s->image_url.c_str()));
+		gtk_box_append(GTK_BOX(box_video_window), gtk_label_new(name_image_url_s->video_name.c_str()));
 		GtkWidget *box_video_window_button = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
 		gtk_box_append(GTK_BOX(box_video_window), box_video_window_button);
 		GtkWidget *button_video_download = gtk_button_new();
@@ -373,11 +371,57 @@ public:
 		GtkWidget *button_video_cancel = gtk_button_new();
 		gtk_box_append(GTK_BOX(box_video_window_button), button_video_cancel);
 		gtk_window_present(GTK_WINDOW(window_video));
+
+		// Освобождаем данные
+		delete name_image_url_s;
+
+		return FALSE; // Возвращаем FALSE, чтобы функция не вызывалась снова
+	}
+
+	static std::string download_image(std::string url_image){
+		std::string name_file;
+		std::cout<<"vffffji"<<url_image<<std::endl;
+		for (int i = size(url_image) - 1; true; i--){
+			std::cout<<url_image[i]<<std::endl;
+			if (url_image[i] == '/'){
+				name_file = url_image.substr(i + 1, size(url_image) - 1 - i);
+				break;
+			}
+		}
+		std::string pash_file = "previews/" + name_file;
+		std::string command = "wget --output-document=" + pash_file + " \"" + url_image + "\"";
+		FILE* pipe = popen(command.c_str(), "r");
+		if (!pipe) {
+			std::cerr << "Ошибка выполнения команды." << std::endl;
+		}
+		// Закрытие команды
+        pclose(pipe);
+		return pash_file;
+	}
+
+	// Фоновая функция для скачивания информации
+	static void downloader_youtube_s(GtkWidget *widget, gpointer *data) {
+		std::cout << "fdgss" << std::endl;
+		const char *entry_text_c_str = gtk_editable_get_text(GTK_EDITABLE(GTK_ENTRY(entry_url)));
+
+		std::string entry_text = entry_text_c_str ? std::string(entry_text_c_str) : "";
+		name_image_url *name_image_url_s = DownloaderYT::get_title_video_and_url_image(entry_text);
+
+		name_image_url_s->image_url = download_image(std::string(name_image_url_s->image_url));
 		/*
-        std::thread t(DownloaderYT::download_yt, entry_text_c_str, name_image_url_s.video_name.c_str());
-        t.detach();
+		// Подготовка данных для обновления UI
+		name_image_url* name_image_url_s = new name_image_url();
+		name_image_url_s->image_url = name_image_url_s.image_url;
+		name_image_url_s->video_name = name_image_url_s.video_name;
 		*/
-    }
+		// Передаем функцию обновления UI в главный поток
+		g_idle_add(update_ui, name_image_url_s);
+
+		/*
+		std::thread t(DownloaderYT::download_yt, entry_text_c_str, name_image_url_s.video_name.c_str());
+		t.detach();
+		*/
+	}
 
 	static void downloader_youtube(GtkWidget *widget, gpointer *data){
 		std::thread t(downloader_youtube_s, widget, data);
