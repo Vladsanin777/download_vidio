@@ -166,7 +166,7 @@ public:
 		for (int i = size(result) - 2; true; i--){
 			if (result[i] == '\n'){
 				std::cout<<"jkkvnjnsdf"<<std::endl;
-				image_url = result.substr(i, size(result) - 1 - i);
+				image_url = result.substr(i + 1, size(result) - 2 - i);
 				name = result.substr(0, i);
 				break;
 			}
@@ -354,6 +354,28 @@ public:
 		std::cout<<"kgddsjjcv"<<std::endl;
         apply_css(("button.box_audio_video_" + data->number_element_box + "{background-color: rgba(0, 0, 0, 0.3); color: rgb(255, 255, 255);} button.box_audio_video_" + data->number_element_box + ":hover{background-color: rgba(0, 0, 0, 0.2); color: rgb(0, 0, 0);} button." + data->new_element + "_box_audio_video_" + data->number_element_box + "{background-color: rgba(0, 0, 0, 0.5); color: rgb(0, 0, 0);} button." + data->new_element + "_box_audio_video_" + data->number_element_box + ":hover{background-color: rgba(0, 0, 0, 0.7); color: rgb(255, 255, 255);}").c_str());
     }
+	// Функция для создания масштабирующего изображения
+	static GdkTexture* load_and_scale_image(const std::string& file_path, int width, int height) {
+		GError *error = nullptr;
+
+		// Загружаем изображение как GdkPixbuf
+		GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file(file_path.c_str(), &error);
+		if (!pixbuf) {
+			g_printerr("Error loading image: %s\n", error->message);
+			g_clear_error(&error);
+			return nullptr;
+		}
+
+		// Масштабируем изображение
+		GdkPixbuf *scaled_pixbuf = gdk_pixbuf_scale_simple(pixbuf, width, height, GDK_INTERP_BILINEAR);
+		g_object_unref(pixbuf); // Освобождаем оригинальный pixbuf
+
+		// Преобразуем GdkPixbuf в GdkTexture
+		GdkTexture *texture = gdk_texture_new_for_pixbuf(scaled_pixbuf);
+		g_object_unref(scaled_pixbuf); // Освобождаем масштабированный pixbuf
+
+		return texture;
+	}
     // Функция обновления UI в главном потоке
 	static gboolean update_ui(gpointer data) {
 		name_image_url* name_image_url_s = static_cast<name_image_url*>(data);
@@ -362,7 +384,28 @@ public:
 		GtkWidget *window_video = gtk_window_new();
 		GtkWidget *box_video_window = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 		gtk_window_set_child(GTK_WINDOW(window_video), box_video_window);
-		gtk_box_append(GTK_BOX(box_video_window), gtk_image_new_from_file(name_image_url_s->image_url.c_str()));
+		/*
+		GtkWidget *image_preview = gtk_image_new_from_file(name_image_url_s->image_url.c_str());
+        gtk_widget_set_hexpand(image_preview, TRUE);
+        gtk_widget_set_vexpand(image_preview, TRUE);
+		gtk_box_append(GTK_BOX(box_video_window), image_preview);
+		*/
+		// Загрузить и масштабировать изображение
+    	GdkTexture *texture = load_and_scale_image(name_image_url_s->image_url, 635, 360);
+
+		if (texture) {
+			// Создать GtkImage с текстурой
+			GtkWidget *image_preview = gtk_image_new_from_paintable(GDK_PAINTABLE(texture));
+			g_object_unref(texture); // Освобождаем текстуру после использования
+
+			// Устанавливаем параметры расширения
+			gtk_widget_set_hexpand(image_preview, TRUE);
+			gtk_widget_set_vexpand(image_preview, TRUE);
+			// Установить min размер w 335 h 190
+			apply_css("");
+			gtk_box_append(GTK_BOX(box_video_window), image_preview);
+		}	
+
 		gtk_box_append(GTK_BOX(box_video_window), gtk_label_new(name_image_url_s->video_name.c_str()));
 		GtkWidget *box_video_window_button = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
 		gtk_box_append(GTK_BOX(box_video_window), box_video_window_button);
@@ -379,24 +422,52 @@ public:
 	}
 
 	static std::string download_image(std::string url_image){
-		std::string name_file;
+		std::string name_file, name_file_file_extension, file_extension;
 		std::cout<<"vffffji"<<url_image<<std::endl;
+		int last_slash = 0;
 		for (int i = size(url_image) - 1; true; i--){
 			std::cout<<url_image[i]<<std::endl;
 			if (url_image[i] == '/'){
-				name_file = url_image.substr(i + 1, size(url_image) - 1 - i);
-				break;
+				if (last_slash == 0){
+					last_slash = i;
+				}else{
+					
+					for (int ii = size(url_image) - 1; true; ii--){
+						std::cout<<"l\t"<<ii<<std::endl;
+						if (url_image[ii] == '.'){
+							std::cout<<"l\t"<<ii<<std::endl;
+							file_extension = url_image.substr(ii, size(url_image) - ii);
+							break;
+						}
+					}
+					name_file = url_image.substr(i + 1, last_slash - i - 1);
+					name_file_file_extension = name_file + file_extension;
+					break;
+				}
 			}
 		}
 		std::string pash_file = "previews/" + name_file;
 		std::string command = "wget --output-document=" + pash_file + " \"" + url_image + "\"";
+		std::cout<<command<<std::endl;
 		FILE* pipe = popen(command.c_str(), "r");
 		if (!pipe) {
 			std::cerr << "Ошибка выполнения команды." << std::endl;
 		}
 		// Закрытие команды
         pclose(pipe);
-		return pash_file;
+
+		std::string name_file_png = name_file + ".png";
+		command = "ffmpeg -i " + pash_file + " previews/" + name_file_png;
+		std::cout<<command<<std::endl;
+		FILE* pipe1 = popen(command.c_str(), "r");
+		if (!pipe1) {
+			std::cerr << "Ошибка выполнения команды." << std::endl;
+		}
+		// Закрытие команды
+        pclose(pipe1);
+		
+
+		return "previews/" + name_file_png;
 	}
 
 	// Фоновая функция для скачивания информации
