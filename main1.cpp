@@ -15,6 +15,7 @@
 #include <iomanip>
 #include <sstream>
 #include <future>
+#include <cairo.h>
 
 
 std::string directory_explorer = "~/";
@@ -86,6 +87,40 @@ bottom_scrolled_window_struct *bottom_scrolled_window;
 struct name_image_url{
 	std::string video_name, image_url;
 };
+
+// Функция для загрузки изображения и масштабирования с использованием Cairo
+cairo_surface_t* load_and_scale_image_with_cairo(const std::string& file_path, int width, int height) {
+    GError *error = nullptr;
+
+    // Загружаем изображение как GdkPixbuf
+    GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file(file_path.c_str(), &error);
+    if (!pixbuf) {
+        g_printerr("Error loading image: %s\n", error->message);
+        g_clear_error(&error);
+        return nullptr;
+    }
+
+    // Получаем оригинальные размеры изображения
+    int original_width = gdk_pixbuf_get_width(pixbuf);
+    int original_height = gdk_pixbuf_get_height(pixbuf);
+
+    // Создаем поверхность Cairo для рисования
+    cairo_surface_t *surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, height);
+    cairo_t *cr = cairo_create(surface);
+
+    // Устанавливаем метод интерполяции для масштабирования
+    cairo_scale(cr, (double)width / original_width, (double)height / original_height);
+
+    // Рисуем изображение с помощью Cairo
+    gdk_cairo_set_source_pixbuf(cr, pixbuf, 0, 0);
+    cairo_paint(cr);
+
+    // Освобождаем ресурсы
+    cairo_destroy(cr);
+    g_object_unref(pixbuf);
+
+    return surface;
+}
 
 class EditWindow {
 public:
@@ -354,28 +389,8 @@ public:
 		std::cout<<"kgddsjjcv"<<std::endl;
         apply_css(("button.box_audio_video_" + data->number_element_box + "{background-color: rgba(0, 0, 0, 0.3); color: rgb(255, 255, 255);} button.box_audio_video_" + data->number_element_box + ":hover{background-color: rgba(0, 0, 0, 0.2); color: rgb(0, 0, 0);} button." + data->new_element + "_box_audio_video_" + data->number_element_box + "{background-color: rgba(0, 0, 0, 0.5); color: rgb(0, 0, 0);} button." + data->new_element + "_box_audio_video_" + data->number_element_box + ":hover{background-color: rgba(0, 0, 0, 0.7); color: rgb(255, 255, 255);}").c_str());
     }
-	// Функция для создания масштабирующего изображения
-	static GdkTexture* load_and_scale_image(const std::string& file_path, int width, int height) {
-		GError *error = nullptr;
+	
 
-		// Загружаем изображение как GdkPixbuf
-		GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file(file_path.c_str(), &error);
-		if (!pixbuf) {
-			g_printerr("Error loading image: %s\n", error->message);
-			g_clear_error(&error);
-			return nullptr;
-		}
-
-		// Масштабируем изображение
-		GdkPixbuf *scaled_pixbuf = gdk_pixbuf_scale_simple(pixbuf, width, height, GDK_INTERP_BILINEAR);
-		g_object_unref(pixbuf); // Освобождаем оригинальный pixbuf
-
-		// Преобразуем GdkPixbuf в GdkTexture
-		GdkTexture *texture = gdk_texture_new_for_pixbuf(scaled_pixbuf);
-		g_object_unref(scaled_pixbuf); // Освобождаем масштабированный pixbuf
-
-		return texture;
-	}
     // Функция обновления UI в главном потоке
 	static gboolean update_ui(gpointer data) {
 		name_image_url* name_image_url_s = static_cast<name_image_url*>(data);
@@ -384,27 +399,36 @@ public:
 		GtkWidget *window_video = gtk_window_new();
 		GtkWidget *box_video_window = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 		gtk_window_set_child(GTK_WINDOW(window_video), box_video_window);
+
+		GtkWidget *button_preview = gtk_button_new();
+		gtk_box_append(GTK_BOX(box_video_window), button_preview);
 		/*
 		GtkWidget *image_preview = gtk_image_new_from_file(name_image_url_s->image_url.c_str());
         gtk_widget_set_hexpand(image_preview, TRUE);
         gtk_widget_set_vexpand(image_preview, TRUE);
-		gtk_box_append(GTK_BOX(box_video_window), image_preview);
+		gtk_button_set_child(GTK_BUTTON(button_preview), image_preview);
 		*/
-		// Загрузить и масштабировать изображение
-    	GdkTexture *texture = load_and_scale_image(name_image_url_s->image_url, 635, 360);
+		// Загрузить и масштабировать изображение с помощью Cairo
+		// Загрузить и масштабировать изображение с помощью Cairo
+		cairo_surface_t *surface = load_and_scale_image_with_cairo(name_image_url_s->image_url, 635, 360);
 
-		if (texture) {
-			// Создать GtkImage с текстурой
-			GtkWidget *image_preview = gtk_image_new_from_paintable(GDK_PAINTABLE(texture));
-			g_object_unref(texture); // Освобождаем текстуру после использования
+		if (surface) {
+			// Создать GtkPicture с использованием поверхности Cairo
+			GtkPicture *picture = GTK_PICTURE(gtk_picture_new_for_surface(surface));
+
+			// Освобождаем поверхность Cairo после использования
+			cairo_surface_destroy(surface);
+
+			// Создаем GtkWidget из GtkPicture
+			GtkWidget *image_preview = GTK_WIDGET(picture);
 
 			// Устанавливаем параметры расширения
 			gtk_widget_set_hexpand(image_preview, TRUE);
 			gtk_widget_set_vexpand(image_preview, TRUE);
-			// Установить min размер w 335 h 190
-			apply_css("");
 			gtk_box_append(GTK_BOX(box_video_window), image_preview);
-		}	
+		} else {
+			g_printerr("Failed to create scaled image using Cairo.\n");
+		}
 
 		gtk_box_append(GTK_BOX(box_video_window), gtk_label_new(name_image_url_s->video_name.c_str()));
 		GtkWidget *box_video_window_button = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
@@ -446,7 +470,7 @@ public:
 				}
 			}
 		}
-		std::string pash_file = "previews/" + name_file;
+		std::string pash_file = "previews/" + name_file + file_extension;
 		std::string command = "wget --output-document=" + pash_file + " \"" + url_image + "\"";
 		std::cout<<command<<std::endl;
 		FILE* pipe = popen(command.c_str(), "r");
@@ -466,7 +490,7 @@ public:
 		// Закрытие команды
         pclose(pipe1);
 		
-
+		
 		return "previews/" + name_file_png;
 	}
 
