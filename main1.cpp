@@ -88,8 +88,8 @@ struct name_image_url{
 	std::string video_name, image_url;
 };
 
-// Функция для загрузки изображения и масштабирования с использованием Cairo
-cairo_surface_t* load_and_scale_image_with_cairo(const std::string& file_path, int width, int height) {
+// Функция для загрузки изображения и масштабирования с использованием GdkPixbuf
+GdkPixbuf* load_and_scale_image_with_cairo(const std::string& file_path, int width, int height) {
     GError *error = nullptr;
 
     // Загружаем изображение как GdkPixbuf
@@ -100,26 +100,11 @@ cairo_surface_t* load_and_scale_image_with_cairo(const std::string& file_path, i
         return nullptr;
     }
 
-    // Получаем оригинальные размеры изображения
-    int original_width = gdk_pixbuf_get_width(pixbuf);
-    int original_height = gdk_pixbuf_get_height(pixbuf);
+    // Масштабируем изображение с помощью GdkPixbuf
+    GdkPixbuf *scaled_pixbuf = gdk_pixbuf_scale_simple(pixbuf, width, height, GDK_INTERP_BILINEAR);
+    g_object_unref(pixbuf); // Освобождаем оригинальный pixbuf
 
-    // Создаем поверхность Cairo для рисования
-    cairo_surface_t *surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, height);
-    cairo_t *cr = cairo_create(surface);
-
-    // Устанавливаем метод интерполяции для масштабирования
-    cairo_scale(cr, (double)width / original_width, (double)height / original_height);
-
-    // Рисуем изображение с помощью Cairo
-    gdk_cairo_set_source_pixbuf(cr, pixbuf, 0, 0);
-    cairo_paint(cr);
-
-    // Освобождаем ресурсы
-    cairo_destroy(cr);
-    g_object_unref(pixbuf);
-
-    return surface;
+    return scaled_pixbuf;
 }
 
 class EditWindow {
@@ -397,11 +382,13 @@ public:
 		std::cout<<"bjksv\t"<<name_image_url_s->image_url<<std::endl;
 
 		GtkWidget *window_video = gtk_window_new();
+		gtk_window_set_default_size(GTK_WINDOW(window_video), 330, 300);
 		GtkWidget *box_video_window = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 		gtk_window_set_child(GTK_WINDOW(window_video), box_video_window);
-
+		
 		GtkWidget *button_preview = gtk_button_new();
 		gtk_box_append(GTK_BOX(box_video_window), button_preview);
+		
 		/*
 		GtkWidget *image_preview = gtk_image_new_from_file(name_image_url_s->image_url.c_str());
         gtk_widget_set_hexpand(image_preview, TRUE);
@@ -410,26 +397,30 @@ public:
 		*/
 		// Загрузить и масштабировать изображение с помощью Cairo
 		// Загрузить и масштабировать изображение с помощью Cairo
-		cairo_surface_t *surface = load_and_scale_image_with_cairo(name_image_url_s->image_url, 635, 360);
+		// Загрузить и масштабировать изображение с помощью Cairo
+		
+		// Загрузить и масштабировать изображение с помощью GdkPixbuf
+		GdkPixbuf *scaled_pixbuf = load_and_scale_image_with_cairo(name_image_url_s->image_url, 640, 360);
 
-		if (surface) {
-			// Создать GtkPicture с использованием поверхности Cairo
-			GtkPicture *picture = GTK_PICTURE(gtk_picture_new_for_surface(surface));
+		if (scaled_pixbuf) {
+			// Создаем GdkTexture из GdkPixbuf
+			GdkTexture *texture = gdk_texture_new_for_pixbuf(scaled_pixbuf);
+			g_object_unref(scaled_pixbuf); // Освобождаем ресурс pixbuf
 
-			// Освобождаем поверхность Cairo после использования
-			cairo_surface_destroy(surface);
-
-			// Создаем GtkWidget из GtkPicture
-			GtkWidget *image_preview = GTK_WIDGET(picture);
+			// Создаем GtkPicture и устанавливаем GdkPaintable
+			GtkWidget *picture = gtk_picture_new_for_paintable(GDK_PAINTABLE(texture));
+			g_object_unref(texture); // Освобождаем ресурс texture
 
 			// Устанавливаем параметры расширения
-			gtk_widget_set_hexpand(image_preview, TRUE);
-			gtk_widget_set_vexpand(image_preview, TRUE);
-			gtk_box_append(GTK_BOX(box_video_window), image_preview);
-		} else {
-			g_printerr("Failed to create scaled image using Cairo.\n");
-		}
+			gtk_widget_set_hexpand(picture, TRUE);
+			gtk_widget_set_vexpand(picture, TRUE);
+			
 
+			gtk_button_set_child(GTK_BUTTON(button_preview), picture);
+		} else {
+			g_printerr("Failed to create scaled image using GdkPixbuf.\n");
+		}
+		
 		gtk_box_append(GTK_BOX(box_video_window), gtk_label_new(name_image_url_s->video_name.c_str()));
 		GtkWidget *box_video_window_button = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
 		gtk_box_append(GTK_BOX(box_video_window), box_video_window_button);
